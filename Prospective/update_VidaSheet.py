@@ -54,7 +54,7 @@ def _append_df_to_excel(
     startrow=None,
     **to_excel_kwargs
 ):
-    with pd.ExcelWriter(filename, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
+    with pd.ExcelWriter(filename, engine="openpyxl", mode="a") as writer:
         writer.book = load_workbook(filename)
         startrow = writer.book[sheet_name].max_row
         if startrow is None:
