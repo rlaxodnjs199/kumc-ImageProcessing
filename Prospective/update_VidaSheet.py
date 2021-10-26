@@ -22,27 +22,32 @@ def _constuct_df_to_append(
     ]
     rows_to_append = []
     for _, df_row in vida_dashboard_df_filtered.iterrows():
-        row = {}
-        row["Proj"] = ""
-        row["Subj"] = df_row["Patient Name"]
-        row["VidaCaseID"] = df_row["Case ID"]
-        row["VidaBy"] = ""
-        row["MRN"] = ""
-        row["Vida Progress"] = df_row["Process status"]
-        row["Progress"] = ""
-        row["ScanDate"] = int(df_row["Acquisition Date"].strftime("%Y%m%d"))
-        row["IN/EX"] = df_row["Scan Type"]
-        row["CT Protocol"] = df_row["Series Desc"]
-        row["Disease"] = ""
-        row["SliceThickness_mm"] = df_row["Slice Thickness"]
-        row["ScannerVender"] = df_row["Scanner"]
-        row["ScannerModel"] = df_row["Scanner Model"]
-        row["Kernel"] = df_row["Kernel"]
-        row["Comments"] = ""
-        row["VIDA path"] = ""
-        row["Report path"] = ""
+        try:
+            row = {}
+            row["Proj"] = ""
+            row["Subj"] = df_row["Patient Name"]
+            row["VidaCaseID"] = df_row["Case ID"]
+            row["VidaBy"] = ""
+            row["MRN"] = ""
+            row["Vida Progress"] = df_row["Process status"]
+            row["Progress"] = ""
+            row["ScanDate"] = int(df_row["Acquisition Date"].strftime("%Y%m%d"))
+            row["IN/EX"] = df_row["Scan Type"]
+            row["CT Protocol"] = df_row["Series Desc"]
+            row["Disease"] = ""
+            row["SliceThickness_mm"] = df_row["Slice Thickness"]
+            row["ScannerVender"] = df_row["Scanner"]
+            row["ScannerModel"] = df_row["Scanner Model"]
+            row["Kernel"] = df_row["Kernel"]
+            row["Comments"] = ""
+            row["VIDA path"] = ""
+            row["Report path"] = ""
 
-        rows_to_append.append(row)
+            rows_to_append.append(row)
+        
+        except:
+            print('constructing dataframe failed at VidaCaseID: ', df_row["Case ID"])
+            continue
 
     return pd.DataFrame(rows_to_append)
 
