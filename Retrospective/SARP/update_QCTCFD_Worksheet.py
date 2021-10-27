@@ -7,15 +7,19 @@ MASTERSHEET_PATH = r"P:\IRB_STUDY00144315_AATRU\Jiwoong\SARP\Data\SARP_DCC\SARP_
 QCTCFD_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCTCFD_Worksheet.xlsx"
 
 
-def extract_subj(subj):
+def append_query_condition_for_the_DF_sent_to_B2() -> str:
+    return "VIDA_IN == 'O' and VIDA_EX == 'O' and (FU == 1 or FU == 0)"
+
+
+def extract_subj(subj) -> str:
     return subj.split("_")[0]
 
 
-def extract_FU(subj):
+def extract_FU(subj) -> int:
     return int(subj[-1]) - 1
 
 
-def trim_subj(subj):
+def trim_subj(subj) -> str:
     return "-".join(subj.split("-")[:-1])
 
 
@@ -24,37 +28,54 @@ def construct_df_QCTCFD_from_VIDA_dashboard(
 ):
     for _, row in df_VIDA.iterrows():
         if row["CT Protocol"].split(" ")[0] == "INSPIRATION":
+            df_QCTCFD_filtered = df_QCTCFD.query(
+                "Subj == @row.Subj and Date == @row.ScanDate"
+            )
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
+                "DCM_IN",
+            ] = "O"
+            df_QCTCFD.loc[
+                df_QCTCFD_filtered.index,
                 "VIDA_IN",
             ] = "O"
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
                 "VIDA_IN_Path",
             ] = f"{VIDA_RESULT_PATH}\{row.VidaCaseID}"
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
                 "VIDA_IN_At",
             ] = "KUMC"
         elif row["CT Protocol"].split(" ")[0] == "EXPIRATION":
+            df_QCTCFD_filtered = df_QCTCFD.query(
+                "Subj == @row.Subj and Date == @row.ScanDate"
+            )
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
+                "DCM_EX",
+            ] = "O"
+            df_QCTCFD.loc[
+                df_QCTCFD_filtered.index,
                 "VIDA_EX",
             ] = "O"
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
                 "VIDA_EX_Path",
             ] = f"{VIDA_RESULT_PATH}\{row.VidaCaseID}"
             df_QCTCFD.loc[
-                (df_QCTCFD["Subj"] == row["Subj"])
-                & (df_QCTCFD["Date"] == row["ScanDate"]),
+                df_QCTCFD_filtered.index,
                 "VIDA_EX_At",
             ] = "KUMC"
+
+    return
+
+
+def update_df_QCTCFD_sent_to_remote_host(df_QCTCFD: pd.DataFrame):
+    condition: str = append_query_condition_for_the_DF_sent_to_B2()
+    df_QCTCFD.loc[df_QCTCFD.query(condition).index, "IR"] = "O"
+
+    return
 
 
 def append_df_to_excel(
@@ -65,7 +86,7 @@ def append_df_to_excel(
         engine="openpyxl",
         mode="a",
         date_format="m/d/yyyy",
-        datetime_format="m/d/yyyy",
+        datetime_format="yyyymmdd",
     ) as writer:
         writer.book = load_workbook(filename)
         startrow = writer.book[sheet_name].max_row
@@ -74,62 +95,104 @@ def append_df_to_excel(
         writer.sheets = {ws.title: ws for ws in writer.book.worksheets}
         df.to_excel(writer, sheet_name, startrow=startrow, **to_excel_kwargs)
 
+    return
 
-# DF: SARP3 available in VIDA_machine:/e/jchoi4/ImageData/SARP/VIDA_20201102-03_SARP_VIDA
-def update_QCTCFD_WORKSHEET_columns(
-    filename, df, sheet_name="Sheet1", **to_excel_kwargs
-):
+
+def update_QCTCFD_WORKSHEET(filename, df, sheet_name="Sheet1", **to_excel_kwargs):
     with pd.ExcelWriter(
         filename,
-        engine="openpyxl",
-        mode="a",
+        engine="xlsxwriter",
         date_format="m/d/yyyy",
-        datetime_format="m/d/yyyy",
+        datetime_format="yyyymmdd",
     ) as writer:
-        writer.book = load_workbook(filename)
-        writer.sheets = {ws.title: ws for ws in writer.book.worksheets}
-        df.to_excel(writer, sheet_name, startrow=0, **to_excel_kwargs)
+        df.to_excel(writer, sheet_name=sheet_name, **to_excel_kwargs)
+        writer.save()
+
+    return
 
 
-# DF: SARP3 imported to VIDA
-df_VIDA = pd.read_excel(VIDASHEET_PATH)
-df_SARP3 = df_VIDA.loc[df_VIDA["Subj"].str.contains("80-"), :]
-df_SARP3["Subj"] = df_SARP3["Subj"].apply(extract_subj)
-df_SARP3["ScanDate"] = pd.to_datetime(df_SARP3["ScanDate"], format="%Y%m%d")
-# df_SARP3_unique_group = df_SARP3.groupby(['Subj', 'ScanDate']).size().reset_index().rename(columns={0:'count'})
+def initialize_df_QCTCFD(df_MASTER_SARP3_unique: pd.DataFrame) -> pd.DataFrame:
+    df_QCTCFD = pd.DataFrame(
+        columns=[
+            "Proj",
+            "Subj",
+            "Date",
+            "FU",
+            "DCM_IN",
+            "DCM_EX",
+            "VIDA_IN",
+            "VIDA_EX",
+            "VIDA_IN_Path",
+            "VIDA_EX_Path",
+            "VIDA_IN_At",
+            "VIDA_EX_At",
+            "IR",
+            "QCT",
+            "PostIR",
+            "CFD1D",
+            "CFD3D",
+            "Ptcl1D",
+            "Ptcl3D",
+        ]
+    )
+    df_QCTCFD = pd.concat([df_QCTCFD, df_MASTER_SARP3_unique]).fillna("")
 
-# DF: SARP3 available in B2
-# df_1 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX0.csv', names=['Subj', 'ScanDate'])
-# df_2 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX1.csv', names=['Subj', 'ScanDate'])
-# df_3 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN0.csv', names=['Subj', 'ScanDate'])
-# df_4 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN1.csv', names=['Subj', 'ScanDate'])
-# df_SARP3_B2 = pd.concat([df_1, df_2, df_3, df_4]).reset_index(drop=True)
-# print(df_SARP3_B2)
-# df_SARP3_B2_unique = df_SARP3_B2.groupby(['Subj', 'ScanDate']).size().reset_index().rename(columns={0:'count'})
-# # print(df_SARP3_B2_unique)
+    return df_QCTCFD
 
-# QCTCFD_Worksheet DF
-df_MASTER = pd.read_excel(MASTERSHEET_PATH)
-df_QCTCFD = pd.read_excel(QCTCFD_WORKSHEET_PATH)
-df_MASTER_SARP3 = df_MASTER.loc[df_MASTER["EDF_ID"].str.contains("80-"), :][
-    ["EDF_ID", "study_date"]
-]
-df_MASTER_SARP3["FU"] = df_MASTER_SARP3["EDF_ID"].apply(extract_FU)
-df_MASTER_SARP3["EDF_ID"] = df_MASTER_SARP3["EDF_ID"].apply(trim_subj)
-df_MASTER_SARP3["study_date"] = pd.to_datetime(
-    df_MASTER_SARP3["study_date"], format="%Y%m%d"
-)
-df_MASTER_SARP3.rename(columns={"EDF_ID": "Subj", "study_date": "Date"}, inplace=True)
-df_MASTER_SARP3_unique = (
-    df_MASTER_SARP3.groupby(["Subj", "Date", "FU"])
-    .size()
-    .reset_index()
-    .rename(columns={0: "count"})
-    .drop(columns="count")
-)
-df_MASTER_SARP3_unique["Proj"] = "SARP3"
-df_QCTCFD = pd.concat([df_QCTCFD, df_MASTER_SARP3_unique]).fillna("")
 
-construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
-# append_df_to_excel(QCTCFD_WORKSHEET_PATH, df_QCTCFD, header=None, index=False)
-update_QCTCFD_WORKSHEET_columns(QCTCFD_WORKSHEET_PATH, df_QCTCFD, index=False)
+def prepare_SARP3_list_from_master_datasheet(
+    master_data_sheet_path=MASTERSHEET_PATH,
+) -> pd.DataFrame:
+    df_MASTER = pd.read_excel(master_data_sheet_path)
+    df_MASTER_SARP3 = df_MASTER.loc[df_MASTER["EDF_ID"].str.contains("80-"), :][
+        ["EDF_ID", "study_date"]
+    ]
+    df_MASTER_SARP3["FU"] = df_MASTER_SARP3["EDF_ID"].apply(extract_FU)
+    df_MASTER_SARP3["EDF_ID"] = df_MASTER_SARP3["EDF_ID"].apply(trim_subj)
+    df_MASTER_SARP3["study_date"] = pd.to_datetime(
+        df_MASTER_SARP3["study_date"], format="%Y%m%d"
+    )
+    df_MASTER_SARP3.rename(
+        columns={"EDF_ID": "Subj", "study_date": "Date"}, inplace=True
+    )
+    df_MASTER_SARP3_unique = (
+        df_MASTER_SARP3.groupby(["Subj", "Date", "FU"])
+        .size()
+        .reset_index()
+        .rename(columns={0: "count"})
+        .drop(columns="count")
+    )
+    df_MASTER_SARP3_unique["Proj"] = "SARP"
+
+    return df_MASTER_SARP3_unique
+
+
+def prepare_SARP3_df_imported_to_VIDA(VIDA_sheet_path=VIDASHEET_PATH) -> pd.DataFrame:
+    df_VIDA = pd.read_excel(VIDA_sheet_path)
+    df_SARP3 = df_VIDA.loc[df_VIDA["Subj"].str.contains("80-"), :]
+    df_SARP3["Subj"] = df_SARP3["Subj"].apply(extract_subj)
+    df_SARP3["ScanDate"] = pd.to_datetime(df_SARP3["ScanDate"], format="%Y%m%d")
+    # df_SARP3_unique_group = df_SARP3.groupby(['Subj', 'ScanDate']).size().reset_index().rename(columns={0:'count'})
+
+    return df_SARP3
+
+
+def prepare_SARP3_df_available_in_B2():
+    # df_1 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX0.csv', names=['Subj', 'ScanDate'])
+    # df_2 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX1.csv', names=['Subj', 'ScanDate'])
+    # df_3 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN0.csv', names=['Subj', 'ScanDate'])
+    # df_4 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN1.csv', names=['Subj', 'ScanDate'])
+    # df_SARP3_B2 = pd.concat([df_1, df_2, df_3, df_4]).reset_index(drop=True)
+    # print(df_SARP3_B2)
+    # df_SARP3_B2_unique = df_SARP3_B2.groupby(['Subj', 'ScanDate']).size().reset_index().rename(columns={0:'count'})
+    # # print(df_SARP3_B2_unique)
+
+    return
+
+
+if __name__ == "__main__":
+    df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
+    df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
+    construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
+    update_df_QCTCFD_sent_to_remote_host(df_QCTCFD)
+    update_QCTCFD_WORKSHEET(QCTCFD_WORKSHEET_PATH, df_QCTCFD, index=False)
