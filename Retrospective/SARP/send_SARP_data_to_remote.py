@@ -17,6 +17,10 @@ PATH_IN_REMOTE_HOST = "/home/twkim/ImageData"
 # ---------------------------------------------------------------------------
 
 
+def pick_series_of_interest() -> List[List[int]]:
+    return [[]]
+
+
 def pick_baseline_with_both_InEx(df_QCTCFD: pd.DataFrame) -> List[List[int]]:
     VIDA_case_id_list = []
     for _, row in df_QCTCFD.iterrows():

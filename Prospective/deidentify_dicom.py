@@ -5,6 +5,8 @@
 #   /e/common/ImageData/DCM_20210929_GALA_127-06-005_DEID_TK
 import os
 import argparse
+from typing import List
+from tqdm import tqdm
 from pydicom import Dataset, dcmread
 
 
@@ -16,25 +18,31 @@ parser.add_argument("src", metavar="src", type=str, help="DICOM source folder pa
 args = parser.parse_args()
 
 src_dcm_dir = args.src
-dst_dcm_dir = ('_').join(src_dcm_dir.split('_')[:-1])
-dst_dcm_dir = ('_').join([dst_dcm_dir, 'DEID', src_dcm_dir.split('_')[-1]])
+dst_dcm_dir = ("_").join(src_dcm_dir.split("_")[:-1])
+dst_dcm_dir = ("_").join([dst_dcm_dir, "DEID", src_dcm_dir.split("_")[-1]])
 
-def _get_dcm_paths_from_dir(dcm_dir: str):
+
+def _get_dcm_paths_from_dir(dcm_dir: str) -> List[str]:
+    dcm_dir_list = []
     for base, _, files in os.walk(dcm_dir):
         for file in files:
-            yield os.path.join(base, file)
+            dcm_dir_list.append(os.path.join(base, file))
+    return dcm_dir_list
+
 
 def _get_patient_id_from_src_dir(dcm_dir: str) -> str:
     if dcm_dir[-1] == "\\" or dcm_dir[-1] == "/":
         dcm_dir = dcm_dir[:-1]
-    
-    return os.path.basename(dcm_dir).split('_')[-2]
+
+    return os.path.basename(dcm_dir).split("_")[-2]
+
 
 def _get_patient_id_from_dir(dst_dcm_dir: str) -> str:
     if dst_dcm_dir[-1] == "\\" or dst_dcm_dir[-1] == "/":
         dst_dcm_dir = dst_dcm_dir[:-1]
 
     return os.path.basename(os.path.dirname(dst_dcm_dir))
+
 
 def _deidentify_dcm_slice(dcm_path: str, patient_ID: str) -> Dataset:
     dicom_to_deidentify = dcmread(dcm_path)
@@ -117,8 +125,10 @@ def _save_dcm_slice(deidentified_dcm_slice: Dataset, dcm_path: str, dst_dcm_dir:
 
 
 if __name__ == "__main__":
+    print(">> De-identification started...")
     # patient_id = _get_patient_id_from_dir(dst_dcm_dir)
     patient_id = _get_patient_id_from_src_dir(src_dcm_dir)
-    for dcm_path in _get_dcm_paths_from_dir(src_dcm_dir):
+    for dcm_path in tqdm(_get_dcm_paths_from_dir(src_dcm_dir)):
         deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path, patient_id)
         _save_dcm_slice(deidentified_dcm_slice, dcm_path, dst_dcm_dir)
+    print(">> Done.")
