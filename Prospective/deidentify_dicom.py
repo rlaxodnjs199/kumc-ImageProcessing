@@ -1,8 +1,6 @@
 # Usage
-# python deidentify_dicom.py {dicom_src_dir} {dicom_dst_dir}
-#   deidentify_dicom.py
-#   /e/common/ImageData/DCM_20210929_GALA_127-06-005_TK
-#   /e/common/ImageData/DCM_20210929_GALA_127-06-005_DEID_TK
+# python deidentify_dicom.py {dicom_src_dir}
+# >> python deidentify_dicom.py /e/common/ImageData/DCM_20210929_GALA_127-06-005_TK
 import os
 import argparse
 from typing import List
@@ -12,7 +10,7 @@ from pydicom import Dataset, dcmread
 
 # Create an argument parser
 parser = argparse.ArgumentParser(
-    description="Recursively de-identify and save DICOM images from src to dst"
+    description="Recursively de-identify and save DICOM images from src"
 )
 parser.add_argument("src", metavar="src", type=str, help="DICOM source folder path")
 args = parser.parse_args()
@@ -35,13 +33,6 @@ def _get_patient_id_from_src_dir(dcm_dir: str) -> str:
         dcm_dir = dcm_dir[:-1]
 
     return os.path.basename(dcm_dir).split("_")[-2]
-
-
-def _get_patient_id_from_dir(dst_dcm_dir: str) -> str:
-    if dst_dcm_dir[-1] == "\\" or dst_dcm_dir[-1] == "/":
-        dst_dcm_dir = dst_dcm_dir[:-1]
-
-    return os.path.basename(os.path.dirname(dst_dcm_dir))
 
 
 def _deidentify_dcm_slice(dcm_path: str, patient_ID: str) -> Dataset:
@@ -126,7 +117,6 @@ def _save_dcm_slice(deidentified_dcm_slice: Dataset, dcm_path: str, dst_dcm_dir:
 
 if __name__ == "__main__":
     print(">> De-identification started...")
-    # patient_id = _get_patient_id_from_dir(dst_dcm_dir)
     patient_id = _get_patient_id_from_src_dir(src_dcm_dir)
     for dcm_path in tqdm(_get_dcm_paths_from_dir(src_dcm_dir)):
         deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path, patient_id)
