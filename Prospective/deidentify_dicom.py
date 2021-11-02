@@ -131,4 +131,4 @@ if __name__ == "__main__":
     for dcm_path in tqdm(_get_dcm_paths_from_dir(src_dcm_dir)):
         deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path, patient_id)
         _save_dcm_slice(deidentified_dcm_slice, dcm_path, dst_dcm_dir)
-    print(">> Done.")
+    print(f">> Done. The de-identified CT scans are in the path: {dst_dcm_dir}")
