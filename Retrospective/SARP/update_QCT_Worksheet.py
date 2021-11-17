@@ -1,4 +1,6 @@
+from typing import Dict
 import pandas as pd
+import numpy as np
 from openpyxl import load_workbook
 
 VIDA_RESULT_PATH = r"E:\VIDA\VIDAvision2.2"
@@ -167,6 +169,60 @@ def prepare_SARP3_list_from_master_datasheet(
     return df_MASTER_SARP3_unique
 
 
+def prepare_SARP_list_from_master_datasheet(df_MASTER) -> pd.DataFrame:
+    df_MASTER_SARP = df_MASTER.loc[df_MASTER["EDF_ID"].str.len() == 5, :][
+        ["EDF_ID", "project", "scan_type", "study_date"]
+    ]
+
+    return df_MASTER_SARP
+
+
+def find_SARP3_missing_data(df_MASTER, df_QCT_worksheet) -> pd.DataFrame:
+    df_MASTER_SARP3 = df_MASTER.loc[df_MASTER["EDF_ID"].str.contains("80-"), :]
+
+    df_SARP3_missing = pd.DataFrame(
+        columns=["EDF_ID", "project", "scan_type", "study_date"]
+    )
+
+    for _, row in df_QCT_worksheet.iterrows():
+        if row["DCM_IN"] != "O":
+            df_SARP3_missing = df_SARP3_missing.append(
+                search_SARP3_entry_from_master_datasheet(
+                    df_MASTER_SARP3, row["Subj"], row["Date"], row["FU"], "IN"
+                ),
+                ignore_index=True,
+            )
+        if row["DCM_EX"] != "O":
+            df_SARP3_missing = df_SARP3_missing.append(
+                search_SARP3_entry_from_master_datasheet(
+                    df_MASTER_SARP3, row["Subj"], row["Date"], row["FU"], "EX"
+                ),
+                ignore_index=True,
+            )
+
+    return df_SARP3_missing
+
+
+def search_SARP3_entry_from_master_datasheet(
+    df_MASTER_SARP3, subj, date, fu, in_or_ex
+) -> Dict:
+    fu = str(fu + 1)
+    SARP3_edf_id = f"{subj}-V{fu}"
+    if in_or_ex == "IN":
+        df_query_result = df_MASTER_SARP3.query(
+            "EDF_ID == @SARP3_edf_id and scan_type == 'Inspiratory'"
+        )
+    else:
+        df_query_result = df_MASTER_SARP3.query(
+            "EDF_ID == @SARP3_edf_id and scan_type == 'Expiratory'"
+        )
+    row = df_query_result.loc[
+        df_query_result.index, ["EDF_ID", "project", "scan_type", "study_date"]
+    ]
+
+    return row
+
+
 def prepare_SARP3_df_imported_to_VIDA(VIDA_sheet_path=VIDASHEET_PATH) -> pd.DataFrame:
     df_VIDA = pd.read_excel(VIDA_sheet_path)
     df_SARP3 = df_VIDA.loc[df_VIDA["Subj"].str.contains("80-"), :]
@@ -191,8 +247,21 @@ def prepare_SARP3_df_available_in_B2():
 
 
 if __name__ == "__main__":
-    df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
-    df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
-    construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
-    update_df_QCTCFD_sent_to_remote_host(df_QCTCFD)
-    update_QCTCFD_WORKSHEET(QCTCFD_WORKSHEET_PATH, df_QCTCFD, index=False)
+    df_MASTER = pd.read_excel(MASTERSHEET_PATH)
+    df_QCT_worksheet = pd.read_excel(QCTCFD_WORKSHEET_PATH)
+
+    # df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
+    # df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
+    # construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
+    # update_df_QCTCFD_sent_to_remote_host(df_QCTCFD)
+    # update_QCTCFD_WORKSHEET(QCTCFD_WORKSHEET_PATH, df_QCTCFD, index=False)
+
+    # Find SARP 1,2,3 missing data: 2021/11/15
+    df_SARP12_missing_data = prepare_SARP_list_from_master_datasheet(df_MASTER)
+    df_SARP_missing_data = df_SARP12_missing_data.append(
+        find_SARP3_missing_data(df_MASTER, df_QCT_worksheet)
+    )
+    df_SARP_missing_data.to_excel(
+        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Output\SARP_missing_data.xlsx",
+        index=False,
+    )

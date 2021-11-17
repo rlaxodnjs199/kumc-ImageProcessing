@@ -44,20 +44,16 @@ def _constuct_df_to_append(
             row["Report path"] = ""
 
             rows_to_append.append(row)
-        
+
         except:
-            print('constructing dataframe failed at VidaCaseID: ', df_row["Case ID"])
+            print("constructing dataframe failed at VidaCaseID: ", df_row["Case ID"])
             continue
 
     return pd.DataFrame(rows_to_append)
 
 
 def _append_df_to_excel(
-    filename,
-    df,
-    sheet_name="Sheet1",
-    startrow=None,
-    **to_excel_kwargs
+    filename, df, sheet_name="Sheet1", startrow=None, **to_excel_kwargs
 ):
     with pd.ExcelWriter(filename, engine="openpyxl", mode="a") as writer:
         writer.book = load_workbook(filename)
@@ -70,10 +66,10 @@ def _append_df_to_excel(
 
 def update_vida_datasheet(vida_datasheet_df: DataFrame, vida_dashboard_df: DataFrame):
     vida_start_case_id = _find_first_case_id_to_update(vida_datasheet_df)
-    print(f'Starting from Case ID: {vida_start_case_id}...')
+    print(f"Starting from Case ID: {vida_start_case_id}...")
     df_to_append = _constuct_df_to_append(vida_start_case_id, vida_dashboard_df)
     _append_df_to_excel(XLSX_PATH, df_to_append, header=None, index=False)
-    print(f'Update VidaSheet.xlsx: Done')
+    print(f"Update VidaSheet.xlsx: Done")
 
 
 if __name__ == "__main__":
