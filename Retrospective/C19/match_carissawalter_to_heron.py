@@ -1,10 +1,10 @@
 import pandas as pd
 
 CARISSA_WALTER_DATASHEET_PATH = (
-    "./Data/CarissaWalter/COVID_CTs_20210513CarissaWalter_0608jc_20210630.xlsx"
+    "Data/CarissaWalter/COVID_CTs_20210513CarissaWalter_0608jc_20210630.xlsx"
 )
-HERON_DATASHEET_PATH = "./Data/Heron/20210629_HeronData.xlsx"
-EXCEL_OUTPUT_PATH = "./Output/C19_Demographics.xlsx"
+HERON_DATASHEET_PATH = "Data/Heron/20210629_HeronData.xlsx"
+EXCEL_OUTPUT_PATH = "Output/C19_Demographics.xlsx"
 
 carissa_df = pd.read_excel(
     CARISSA_WALTER_DATASHEET_PATH, header=9, usecols="A,I,E,J"

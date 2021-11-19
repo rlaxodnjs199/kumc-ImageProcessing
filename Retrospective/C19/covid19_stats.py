@@ -1,6 +1,6 @@
 import pandas as pd
 
-DATASHEET_PATH = "Data/Datasheet/DataSheet.xlsx"
+VIDASHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\VidaSheet.xlsx"
 CARISSA_WALTER_DATASHEET_PATH = (
     "Data/CarissaWalter/COVID_CTs_20210513CarissaWalter_0608jc.xlsx"
 )
@@ -10,7 +10,7 @@ PULMONARY_MASTER_DATA_PATH = (
 )
 
 # Prepare dataframes of interest from excel files
-datasheet_df = pd.read_excel(DATASHEET_PATH)
+vidasheet_df = pd.read_excel(VIDASHEET_PATH)
 carissa_df = pd.read_excel(
     CARISSA_WALTER_DATASHEET_PATH, header=9, usecols="A,I,E,J"
 ).sort_values(by=["mrn", "date"])
@@ -25,17 +25,17 @@ single_timepoint_subjects_from_carissa_df = carissa_df.drop_duplicates(
     subset=["Subj"], keep=False
 )
 
-# Multi-timepoints from DataSheet
+# Multi-timepoints from VidaSheet
 MT_START_VIDA_CASE_ID = 88
 MT_END_VIDA_CASE_ID = 1394
-multi_timepoints_subjects_from_datasheet_df = datasheet_df[
-    (datasheet_df["VidaCaseID"] >= MT_START_VIDA_CASE_ID)
-    & (datasheet_df["VidaCaseID"] <= MT_END_VIDA_CASE_ID)
+multi_timepoints_subjects_from_vidasheet_df = vidasheet_df[
+    (vidasheet_df["VidaCaseID"] >= MT_START_VIDA_CASE_ID)
+    & (vidasheet_df["VidaCaseID"] <= MT_END_VIDA_CASE_ID)
 ]
 multi_timepoints_subjects_from_datasheet_success_df = (
-    multi_timepoints_subjects_from_datasheet_df[
-        (multi_timepoints_subjects_from_datasheet_df["Vida Progress"] == "Success")
-        & (multi_timepoints_subjects_from_datasheet_df["SliceThickness_mm"] <= 2)
+    multi_timepoints_subjects_from_vidasheet_df[
+        (multi_timepoints_subjects_from_vidasheet_df["Vida Progress"] == "Success")
+        & (multi_timepoints_subjects_from_vidasheet_df["SliceThickness_mm"] <= 2)
     ]
 )
 
@@ -67,8 +67,8 @@ merge_datasheet_pulmaster_df = pd.merge(
 # print(merge_datasheet_pulmaster_df.shape)
 
 # Current VIDA processing status
-VIDA_done_df = multi_timepoints_subjects_from_datasheet_df[
-    multi_timepoints_subjects_from_datasheet_df["Progress"] == "Done"
+VIDA_done_df = multi_timepoints_subjects_from_vidasheet_df[
+    multi_timepoints_subjects_from_vidasheet_df["Progress"] == "Done"
 ]
 print(f"VIDA processing Done: {VIDA_done_df.shape[0]} cases")
 VIDA_done_subjects_df = VIDA_done_df[
