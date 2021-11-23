@@ -2,11 +2,13 @@
 # python deidentify_dicom.py {dicom_src_dir}
 # >> python deidentify_dicom.py /e/common/ImageData/DCM_20210929_GALA_127-06-005_TK
 import os
+from os.path import basename, dirname
 import argparse
 from typing import List
 from tqdm import tqdm
 from pydicom import Dataset, dcmread
 
+IN_EX_DIR_SYNTAX = ["TLC", "RV"]
 
 # Create an argument parser
 parser = argparse.ArgumentParser(
@@ -16,8 +18,6 @@ parser.add_argument("src", metavar="src", type=str, help="DICOM source folder pa
 args = parser.parse_args()
 
 src_dcm_dir = args.src
-dst_dcm_dir = ("_").join(src_dcm_dir.split("_")[:-1])
-dst_dcm_dir = ("_").join([dst_dcm_dir, "DEID", src_dcm_dir.split("_")[-1]])
 
 
 def _get_dcm_paths_from_dir(dcm_dir: str) -> List[str]:
@@ -28,18 +28,54 @@ def _get_dcm_paths_from_dir(dcm_dir: str) -> List[str]:
     return dcm_dir_list
 
 
-def _get_patient_id_from_src_dir(dcm_dir: str) -> str:
-    if dcm_dir[-1] == "\\" or dcm_dir[-1] == "/":
-        dcm_dir = dcm_dir[:-1]
+def _get_patient_id(dcm_path: str) -> str:
+    dcm_dir = (
+        basename(dirname(dirname(dcm_path)))
+        if basename(dirname(dcm_path)) in IN_EX_DIR_SYNTAX
+        else basename(dirname(dcm_path))
+    )
+    return dcm_dir.split("_")[-2]
 
-    return os.path.basename(dcm_dir).split("_")[-2]
+
+def _get_dst_dcm_dir(dcm_path: str) -> str:
+    if basename(dirname(dcm_path)) in IN_EX_DIR_SYNTAX:
+        base_path = dirname(dirname(dirname(dcm_path)))
+        in_or_ex = basename(dirname(dcm_path))
+        src_dir_name = basename(dirname(dirname(dcm_path)))
+        output_dir_prefix = ("_").join(src_dir_name.split("_")[:-1])
+        output_dir_name = ("_").join(
+            [output_dir_prefix, "DEID", src_dir_name.split("_")[-1]]
+        )
+        output_dir = os.path.join(base_path + "\\" + output_dir_name)
+
+        if not os.path.exists(os.path.join(base_path, output_dir_name)):
+            os.makedirs(output_dir)
+        if not os.path.exists(os.path.join(output_dir, in_or_ex)):
+            os.makedirs(os.path.join(output_dir, in_or_ex))
+
+        return os.path.join(output_dir, in_or_ex)
+
+    else:
+        base_path = dirname(dirname(dcm_path))
+        src_dir_name = basename(dirname(dcm_path))
+        output_dir_prefix = ("_").join(src_dir_name[:-1])
+        output_dir_name = ("_").join(
+            [output_dir_prefix, "DEID", src_dir_name.split("_")[-1]]
+        )
+        output_dir = os.path.join(base_path, output_dir_name)
+
+        if not os.path.exists(os.path.join(base_path, output_dir_name)):
+            os.makedirs(output_dir)
+
+        return os.path.join(output_dir)
 
 
-def _deidentify_dcm_slice(dcm_path: str, patient_ID: str) -> Dataset:
+def _deidentify_dcm_slice(dcm_path: str) -> Dataset:
     dicom_to_deidentify = dcmread(dcm_path)
+    patient_id = _get_patient_id(dcm_path)
 
     try:
-        dicom_to_deidentify.PatientID = dicom_to_deidentify.PatientName = patient_ID
+        dicom_to_deidentify.PatientID = dicom_to_deidentify.PatientName = patient_id
     except:
         print(f"{dcm_path}: PatientID or PatientName tag does not exist")
     try:
@@ -95,30 +131,14 @@ def _deidentify_dcm_slice(dcm_path: str, patient_ID: str) -> Dataset:
     return dicom_to_deidentify
 
 
-def _save_dcm_slice(deidentified_dcm_slice: Dataset, dcm_path: str, dst_dcm_dir: str):
-    if dcm_path[-1] == "\\" or dcm_path[-1] == "/":
-        dcm_path = dcm_path[:-1]
-    if dst_dcm_dir[-1] == "\\" or dst_dcm_dir[-1] == "/":
-        dst_dcm_dir = dst_dcm_dir[:-1]
-
-    output_file_name = os.path.basename(dcm_path)
-    output_dir_name = os.path.basename(os.path.dirname(dcm_path))
-
-    if not os.path.exists(f"{dst_dcm_dir}"):
-        os.makedirs(f"{dst_dcm_dir}")
-
-    if not os.path.exists(f"{dst_dcm_dir}/{output_dir_name}"):
-        os.makedirs(f"{dst_dcm_dir}/{output_dir_name}")
-
-    deidentified_dcm_slice.save_as(
-        f"{dst_dcm_dir}/{output_dir_name}/{output_file_name}"
-    )
+def _save_dcm_slice(deidentified_dcm_slice: Dataset, dcm_path: str):
+    dst_file_path = os.path.join(_get_dst_dcm_dir(dcm_path), basename(dcm_path))
+    deidentified_dcm_slice.save_as(dst_file_path)
 
 
 if __name__ == "__main__":
-    print(">> De-identification started...")
-    patient_id = _get_patient_id_from_src_dir(src_dcm_dir)
+    print(">> Start De-identification...")
     for dcm_path in tqdm(_get_dcm_paths_from_dir(src_dcm_dir)):
-        deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path, patient_id)
-        _save_dcm_slice(deidentified_dcm_slice, dcm_path, dst_dcm_dir)
-    print(f">> Done. The de-identified CT scans are in the path: {dst_dcm_dir}")
+        deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path)
+        _save_dcm_slice(deidentified_dcm_slice, dcm_path)
+    print(f">> De-identification Done. The results are in {src_dcm_dir}")
