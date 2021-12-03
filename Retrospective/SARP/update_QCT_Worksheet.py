@@ -248,7 +248,7 @@ def prepare_SARP3_df_available_in_B2():
 
 if __name__ == "__main__":
     df_MASTER = pd.read_excel(MASTERSHEET_PATH)
-    df_QCT_worksheet = pd.read_excel(QCTCFD_WORKSHEET_PATH)
+    df_QCT_worksheet = pd.read_excel(QCT_WORKSHEET_PATH)
 
     # df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
     # df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
