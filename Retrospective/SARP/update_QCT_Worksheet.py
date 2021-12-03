@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 VIDA_RESULT_PATH = r"E:\VIDA\VIDAvision2.2"
 VIDASHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\VidaSheet.xlsx"
 MASTERSHEET_PATH = r"P:\IRB_STUDY00144315_AATRU\Jiwoong\SARP\Data\SARP_DCC\SARP_ClusterCT\SARP_I_II_and_III_master_data_report _04112019_DL.xlsx"
-QCTCFD_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCTCFD_Worksheet.xlsx"
+QCT_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCT_Worksheet.xlsx"
 
 
 def append_query_condition_for_the_DF_sent_to_B2() -> str:

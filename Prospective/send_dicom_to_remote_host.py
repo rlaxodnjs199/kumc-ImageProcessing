@@ -27,7 +27,7 @@ args = parser.parse_args()
 
 # Global Variable -----------------------------------------------------------
 XLSX_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\VidaSheet.xlsx"
-OUTPUT_PATH = "Data_to_send"
+OUTPUT_PATH = r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Data_to_send"
 PATH_IN_REMOTE_HOST = f"/data4/common/ImageData"
 VIDA_RESULTS_PATH = args.src
 OUTPUT_FOLDER = (
@@ -41,6 +41,7 @@ OUTPUT_FOLDER = (
 TIMEPOINT = 0
 # ---------------------------------------------------------------------------
 
+
 def _get_case_ids(vida_result_paths=VIDA_RESULTS_PATH) -> List[int]:
     try:
         case_ids = [int(case) for case in os.listdir(vida_result_paths)]
@@ -49,27 +50,36 @@ def _get_case_ids(vida_result_paths=VIDA_RESULTS_PATH) -> List[int]:
     return case_ids
 
 
-def _get_ProjSubjList_in_path(xlsx_path=XLSX_PATH, path_in_remote_host=PATH_IN_REMOTE_HOST, output_path=OUTPUT_PATH) -> str:
+def _get_ProjSubjList_in_path(
+    xlsx_path=XLSX_PATH,
+    path_in_remote_host=PATH_IN_REMOTE_HOST,
+    output_path=OUTPUT_PATH,
+) -> str:
     vidasheet_df = pd.read_excel(xlsx_path, usecols="A:C,I")
-    df = vidasheet_df.query('VidaCaseID in @case_ids')
-    df['ImgDir'] = f'{path_in_remote_host}/' +  df['Proj'] + '/' + df['VidaCaseID'].astype(str)
+    df = vidasheet_df.query("VidaCaseID in @case_ids")
+    df["ImgDir"] = (
+        f"{path_in_remote_host}/" + df["Proj"] + "/" + df["VidaCaseID"].astype(str)
+    )
     df.rename(columns={"IN/EX": "Img"}, inplace=True)
     df.drop(columns=["VidaCaseID"], inplace=True)
 
-    proj = df['Proj'].iloc[0]
+    proj = df["Proj"].iloc[0]
     today = datetime.today().strftime("%Y%m%d")
 
-    df_to_write = df.to_csv(index=False, line_terminator="\n").replace(
-        ",", "    "
-    )
+    df_to_write = df.to_csv(index=False, line_terminator="\n").replace(",", "    ")
 
-    with open(f'{output_path}/ProjSubjList.in.{today}_{proj}_T{TIMEPOINT}', 'w') as f:
+    with open(f"{output_path}/ProjSubjList.in.{today}_{proj}_T{TIMEPOINT}", "w") as f:
         f.write(df_to_write)
-    
-    return f'{output_path}/ProjSubjList.in.{today}_{proj}_T{TIMEPOINT}'
+
+    return f"{output_path}/ProjSubjList.in.{today}_{proj}_T{TIMEPOINT}"
 
 
-def _compress_vida_results(case_ids: List[int], vida_results_path=VIDA_RESULTS_PATH, output_path=OUTPUT_PATH, output_folder=OUTPUT_FOLDER):
+def _compress_vida_results(
+    case_ids: List[int],
+    vida_results_path=VIDA_RESULTS_PATH,
+    output_path=OUTPUT_PATH,
+    output_folder=OUTPUT_FOLDER,
+):
     with tarfile.open(f"{output_path}/{output_folder}.tar.bz2", "w:bz2") as tar:
         for case in tqdm(case_ids):
             tar.add(Path(f"{vida_results_path}/{case}"), f"{output_folder}/{case}")
@@ -102,7 +112,7 @@ def _send_vida_results_to_b2(ProjSubjList_in=False):
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     case_ids = _get_case_ids()
     _compress_vida_results(case_ids)
     _send_vida_results_to_b2(ProjSubjList_in=True)

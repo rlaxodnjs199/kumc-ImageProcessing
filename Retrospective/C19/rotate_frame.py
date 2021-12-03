@@ -19,4 +19,4 @@ for excel in os.listdir(input_path):
         df = pd.concat([df_temp, df], axis=1)
         master_df = pd.concat([master_df, df])
 
-master_df.to_excel("output.xlsx")
+master_df.to_excel("output.xlsx", index=False)
