@@ -5,6 +5,15 @@ QCT_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas
 SNUH_VIDASHEET_PATH = (
     r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Data\snuh_vida_total.xlsx"
 )
+SUBJ_PREFIX = "PM"
+HP_LOOKUP = {
+    "brmh": "BR",
+    "kw_knuh": "KW",
+    "nmc": "NM",
+    "sb_snubh": "SB",
+    "snuh": "SN",
+    "snuh-IMA": "SI",
+}
 
 
 def initialize_base_df() -> pd.DataFrame:
@@ -36,16 +45,25 @@ def initialize_base_df() -> pd.DataFrame:
 
 def append_row_df(df_SNUH, df_total):
     for _, row in df_total.iterrows():
-        subj_id = row["Organization"] + "-" + row["StudyID"]
-        case = df_SNUH.query("Subj == @subj_id and Date == @row.CTDate")
+        if row["Organization"] not in HP_LOOKUP:
+            print("Organization cannot be identified!")
+            continue
+        else:
+            subj_id = (
+                SUBJ_PREFIX
+                + HP_LOOKUP[row["Organization"]]
+                + row["StudyID"].replace("-", "")
+            )
+            case = df_SNUH.query("Subj == @subj_id and Date == @row.CTDate")
+
         if case.empty:
             new_row_dict = {}
-            new_row_dict["Proj"] = row["Proj"]
-            new_row_dict["Subj"] = row["Organization"] + "-" + row["StudyID"]
+            new_row_dict["Proj"] = row["Proj"].upper()
+            new_row_dict["Subj"] = subj_id
             new_row_dict["Date"] = row["CTDate"]
             new_row_dict["FU"] = row["Calculated_FU"]
 
-            if row["Status"] == "Done":
+            if row["Status"] == "Done" or row["Status"] == "F>Done":
                 if row["InEx"].upper() == "IN":
                     new_row_dict["DCM_IN"] = "O"
                     new_row_dict["VIDA_IN"] = "Done"
@@ -72,7 +90,7 @@ def append_row_df(df_SNUH, df_total):
 
             df_SNUH = df_SNUH.append(new_row_dict, ignore_index=True)
         else:
-            if row["Status"] == "Done":
+            if row["Status"] == "Done" or row["Status"] == "F>Done":
                 if row["InEx"].upper() == "IN":
                     df_SNUH.loc[case.index, "DCM_IN"] = "O"
                     df_SNUH.loc[case.index, "VIDA_IN"] = "Done"
@@ -107,9 +125,7 @@ def append_row_df(df_SNUH, df_total):
     return df_SNUH.fillna("")
 
 
-def append_df_to_excel(
-    filename, df, sheet_name="SNUH", startrow=None, **to_excel_kwargs
-):
+def write_df_to_excel(filename, df, sheet_name="SNUH", **to_excel_kwargs):
     with pd.ExcelWriter(
         filename,
         engine="openpyxl",
@@ -118,10 +134,8 @@ def append_df_to_excel(
         datetime_format="yyyymmdd",
     ) as writer:
         writer.book = load_workbook(filename)
-        startrow = writer.book[sheet_name].max_row
         writer.sheets = {ws.title: ws for ws in writer.book.worksheets}
-        df.to_excel(writer, sheet_name, startrow=startrow, **to_excel_kwargs)
-
+        df.to_excel(writer, sheet_name, **to_excel_kwargs)
     return
 
 
@@ -130,4 +144,4 @@ if __name__ == "__main__":
     df_SNUH = initialize_base_df()
     df_SNUH = append_row_df(df_SNUH, df_total)
 
-    append_df_to_excel(QCT_WORKSHEET_PATH, df_SNUH, index=False)
+    write_df_to_excel(QCT_WORKSHEET_PATH, df_SNUH, index=False)
