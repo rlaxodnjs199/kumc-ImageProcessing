@@ -3,7 +3,7 @@ from openpyxl import load_workbook
 
 QCT_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCT_Worksheet.xlsx"
 SNUH_VIDASHEET_PATH = (
-    r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Data\snuh_vida_total.xlsx"
+    r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Data\SNUH\snuh_vida_total.xlsx"
 )
 SUBJ_PREFIX = "PM"
 HP_LOOKUP = {
@@ -12,7 +12,7 @@ HP_LOOKUP = {
     "nmc": "NM",
     "sb_snubh": "SB",
     "snuh": "SN",
-    "snuh-IMA": "SI",
+    "snuh-IMA": "SN",
 }
 
 
@@ -21,7 +21,7 @@ def initialize_base_df() -> pd.DataFrame:
         columns=[
             "Proj",
             "Subj",
-            "Date",
+            "CTDate",
             "FU",
             "DCM_IN",
             "DCM_EX",
@@ -54,26 +54,32 @@ def append_row_df(df_SNUH, df_total):
                 + HP_LOOKUP[row["Organization"]]
                 + row["StudyID"].replace("-", "")
             )
-            case = df_SNUH.query("Subj == @subj_id and Date == @row.CTDate")
+            case = df_SNUH.query("Subj == @subj_id and CTDate == @row.CTDate")
 
         if case.empty:
             new_row_dict = {}
             new_row_dict["Proj"] = row["Proj"].upper()
             new_row_dict["Subj"] = subj_id
-            new_row_dict["Date"] = row["CTDate"]
+            new_row_dict["CTDate"] = row["CTDate"]
             new_row_dict["FU"] = row["Calculated_FU"]
 
-            if row["Status"] == "Done" or row["Status"] == "F>Done":
+            if (row["Status"] == "Done" or row["Status"] == "F>Done") and not pd.isna(
+                row["VIDA_result_Full_Path"]
+            ):
                 if row["InEx"].upper() == "IN":
                     new_row_dict["DCM_IN"] = "O"
                     new_row_dict["VIDA_IN"] = "Done"
                     new_row_dict["VIDA_IN_At"] = "SNUH/B1"
-                    new_row_dict["VIDA_IN_Path"] = row["VIDA_result_Full_Path"]
+                    new_row_dict["VIDA_IN_Path"] = "/".join(
+                        row["VIDA_result_Full_Path"].split("\\")
+                    ).replace("//", "/")
                 else:
                     new_row_dict["DCM_EX"] = "O"
                     new_row_dict["VIDA_EX"] = "Done"
                     new_row_dict["VIDA_EX_At"] = "SNUH/B1"
-                    new_row_dict["VIDA_EX_Path"] = row["VIDA_result_Full_Path"]
+                    new_row_dict["VIDA_EX_Path"] = "/".join(
+                        row["VIDA_result_Full_Path"].split("\\")
+                    ).replace("//", "/")
             elif pd.isna(row["Status"]):
                 print("Not processed")
             else:
@@ -81,30 +87,30 @@ def append_row_df(df_SNUH, df_total):
                     new_row_dict["DCM_IN"] = "O"
                     new_row_dict["VIDA_IN"] = "Fail"
                     new_row_dict["VIDA_IN_At"] = "SNUH/B1"
-                    new_row_dict["VIDA_IN_Path"] = row["VIDA_result_Full_Path"]
                 else:
                     new_row_dict["DCM_EX"] = "O"
                     new_row_dict["VIDA_EX"] = "Fail"
                     new_row_dict["VIDA_EX_At"] = "SNUH/B1"
-                    new_row_dict["VIDA_EX_Path"] = row["VIDA_result_Full_Path"]
 
             df_SNUH = df_SNUH.append(new_row_dict, ignore_index=True)
         else:
-            if row["Status"] == "Done" or row["Status"] == "F>Done":
+            if (row["Status"] == "Done" or row["Status"] == "F>Done") and not pd.isna(
+                row["VIDA_result_Full_Path"]
+            ):
                 if row["InEx"].upper() == "IN":
                     df_SNUH.loc[case.index, "DCM_IN"] = "O"
                     df_SNUH.loc[case.index, "VIDA_IN"] = "Done"
                     df_SNUH.loc[case.index, "VIDA_IN_At"] = "SNUH/B1"
-                    df_SNUH.loc[case.index, "VIDA_IN_Path"] = row[
-                        "VIDA_result_Full_Path"
-                    ]
+                    df_SNUH.loc[case.index, "VIDA_IN_Path"] = "/".join(
+                        row["VIDA_result_Full_Path"].split("\\")
+                    ).replace("//", "/")
                 else:
                     df_SNUH.loc[case.index, "DCM_EX"] = "O"
                     df_SNUH.loc[case.index, "VIDA_EX"] = "Done"
                     df_SNUH.loc[case.index, "VIDA_EX_At"] = "SNUH/B1"
-                    df_SNUH.loc[case.index, "VIDA_EX_Path"] = row[
-                        "VIDA_result_Full_Path"
-                    ]
+                    df_SNUH.loc[case.index, "VIDA_EX_Path"] = "/".join(
+                        row["VIDA_result_Full_Path"].split("\\")
+                    ).replace("//", "/")
             elif pd.isna(row["Status"]):
                 print("Not processed")
             else:
@@ -112,16 +118,10 @@ def append_row_df(df_SNUH, df_total):
                     df_SNUH.loc[case.index, "DCM_IN"] = "O"
                     df_SNUH.loc[case.index, "VIDA_IN"] = "Fail"
                     df_SNUH.loc[case.index, "VIDA_IN_At"] = "SNUH/B1"
-                    df_SNUH.loc[case.index, "VIDA_IN_Path"] = row[
-                        "VIDA_result_Full_Path"
-                    ]
                 else:
                     df_SNUH.loc[case.index, "DCM_EX"] = "O"
                     df_SNUH.loc[case.index, "VIDA_EX"] = "Fail"
                     df_SNUH.loc[case.index, "VIDA_EX_At"] = "SNUH/B1"
-                    df_SNUH.loc[case.index, "VIDA_EX_Path"] = row[
-                        "VIDA_result_Full_Path"
-                    ]
     return df_SNUH.fillna("")
 
 
