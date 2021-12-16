@@ -2,6 +2,7 @@
 # python deidentify_dicom.py {dicom_src_dir}
 # >> python deidentify_dicom.py /e/common/ImageData/DCM_20210929_GALA_127-06-005_TK
 import os
+import pathlib
 from os.path import basename, dirname
 import argparse
 from typing import List
@@ -14,7 +15,7 @@ IN_EX_DIR_SYNTAX = ["TLC", "RV"]
 parser = argparse.ArgumentParser(
     description="Recursively de-identify and save DICOM images from src"
 )
-parser.add_argument("src", metavar="src", type=str, help="DICOM source folder path")
+parser.add_argument("src", metavar="src", type=pathlib.Path, help="DICOM source folder path")
 args = parser.parse_args()
 
 src_dcm_dir = args.src

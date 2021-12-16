@@ -32,7 +32,7 @@ def _constuct_df_to_append(
             row["Vida Progress"] = df_row["Process status"]
             row["Progress"] = ""
             row["ScanDate"] = int(df_row["Acquisition Date"].strftime("%Y%m%d"))
-            row["IN/EX"] = df_row["Scan Type"]
+            row["IN/EX"] = "IN" if (df_row["Scan Type"] == "Inspiratory") else "EX"
             row["CT Protocol"] = df_row["Series Desc"]
             row["Disease"] = ""
             row["SliceThickness_mm"] = df_row["Slice Thickness"]
