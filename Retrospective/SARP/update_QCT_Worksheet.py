@@ -234,14 +234,30 @@ def prepare_SARP3_df_imported_to_VIDA(VIDA_sheet_path=VIDASHEET_PATH) -> pd.Data
 
 
 def prepare_SARP3_df_available_in_B2():
-    # df_1 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX0.csv', names=['Subj', 'ScanDate'])
-    # df_2 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX1.csv', names=['Subj', 'ScanDate'])
-    # df_3 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN0.csv', names=['Subj', 'ScanDate'])
-    # df_4 = pd.read_csv(r'C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN1.csv', names=['Subj', 'ScanDate'])
-    # df_SARP3_B2 = pd.concat([df_1, df_2, df_3, df_4]).reset_index(drop=True)
-    # print(df_SARP3_B2)
-    # df_SARP3_B2_unique = df_SARP3_B2.groupby(['Subj', 'ScanDate']).size().reset_index().rename(columns={0:'count'})
-    # # print(df_SARP3_B2_unique)
+    df_1 = pd.read_csv(
+        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX0.csv",
+        names=["Subj", "ScanDate"],
+    )
+    df_2 = pd.read_csv(
+        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_EX1.csv",
+        names=["Subj", "ScanDate"],
+    )
+    df_3 = pd.read_csv(
+        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN0.csv",
+        names=["Subj", "ScanDate"],
+    )
+    df_4 = pd.read_csv(
+        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Temp\Subj_Date_SARP3_IN1.csv",
+        names=["Subj", "ScanDate"],
+    )
+    df_SARP3_B2 = pd.concat([df_1, df_2, df_3, df_4]).reset_index(drop=True)
+    df_SARP3_B2_unique = (
+        df_SARP3_B2.groupby(["Subj", "ScanDate"])
+        .size()
+        .reset_index()
+        .rename(columns={0: "count"})
+    )
+    df_SARP3_B2_unique.to_csv("./df_b2.csv")
 
     return
 
@@ -250,18 +266,30 @@ if __name__ == "__main__":
     df_MASTER = pd.read_excel(MASTERSHEET_PATH)
     df_QCT_worksheet = pd.read_excel(QCT_WORKSHEET_PATH)
 
-    # df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
-    # df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
-    # construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
+    df_SARP3 = prepare_SARP3_df_imported_to_VIDA()
+    df_QCTCFD = initialize_df_QCTCFD(prepare_SARP3_list_from_master_datasheet())
+    construct_df_QCTCFD_from_VIDA_dashboard(df_QCTCFD, df_SARP3)
+
+    prepare_SARP3_df_available_in_B2()
+
+    df_QCTCFD_unique = (
+        df_QCTCFD.groupby(["Subj", "Date"])
+        .size()
+        .reset_index()
+        .rename(columns={0: "count"})
+    )
+    df_QCTCFD_unique.to_csv("./df_qctcfd.csv")
+
+    # prepare_SARP3_df_available_in_B2()
     # update_df_QCTCFD_sent_to_remote_host(df_QCTCFD)
     # update_QCTCFD_WORKSHEET(QCTCFD_WORKSHEET_PATH, df_QCTCFD, index=False)
 
-    # Find SARP 1,2,3 missing data: 2021/11/15
-    df_SARP12_missing_data = prepare_SARP_list_from_master_datasheet(df_MASTER)
-    df_SARP_missing_data = df_SARP12_missing_data.append(
-        find_SARP3_missing_data(df_MASTER, df_QCT_worksheet)
-    )
-    df_SARP_missing_data.to_excel(
-        r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Output\SARP_missing_data.xlsx",
-        index=False,
-    )
+    # # Find SARP 1,2,3 missing data: 2021/11/15
+    # df_SARP12_missing_data = prepare_SARP_list_from_master_datasheet(df_MASTER)
+    # df_SARP_missing_data = df_SARP12_missing_data.append(
+    #     find_SARP3_missing_data(df_MASTER, df_QCT_worksheet)
+    # )
+    # df_SARP_missing_data.to_excel(
+    #     r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Output\SARP_missing_data.xlsx",
+    #     index=False,
+    # )

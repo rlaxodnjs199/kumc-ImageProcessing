@@ -15,7 +15,9 @@ IN_EX_DIR_SYNTAX = ["TLC", "RV"]
 parser = argparse.ArgumentParser(
     description="Recursively de-identify and save DICOM images from src"
 )
-parser.add_argument("src", metavar="src", type=pathlib.Path, help="DICOM source folder path")
+parser.add_argument(
+    "src", metavar="src", type=pathlib.Path, help="DICOM source folder path"
+)
 args = parser.parse_args()
 
 src_dcm_dir = args.src
@@ -59,7 +61,7 @@ def _get_dst_dcm_dir(dcm_path: str) -> str:
     else:
         base_path = dirname(dirname(dcm_path))
         src_dir_name = basename(dirname(dcm_path))
-        output_dir_prefix = ("_").join(src_dir_name[:-1])
+        output_dir_prefix = ("_").join(src_dir_name.split("_")[:-1])
         output_dir_name = ("_").join(
             [output_dir_prefix, "DEID", src_dir_name.split("_")[-1]]
         )
@@ -138,8 +140,9 @@ def _save_dcm_slice(deidentified_dcm_slice: Dataset, dcm_path: str):
 
 
 if __name__ == "__main__":
-    print(">> Start De-identification...")
+    print(">> De-identification Processing...")
     for dcm_path in tqdm(_get_dcm_paths_from_dir(src_dcm_dir)):
         deidentified_dcm_slice = _deidentify_dcm_slice(dcm_path)
         _save_dcm_slice(deidentified_dcm_slice, dcm_path)
-    print(f">> De-identification Done. The results are in {src_dcm_dir}")
+    print(">> De-identification Done.")
+    print(f">> Results in {_get_dst_dcm_dir(dcm_path)}")
