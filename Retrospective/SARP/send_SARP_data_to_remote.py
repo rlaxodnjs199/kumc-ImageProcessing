@@ -9,11 +9,11 @@ import numpy as np
 from dotenv import dotenv_values
 
 # ---------------------------------------------------------------------------
-QCTCFD_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCTCFD_Worksheet.xlsx"
+QCTCFD_WORKSHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\QCT_Worksheet.xlsx"
 VIDA_RESULTS_PATH = r"E:\VIDA\VIDAvision2.2"
 OUTPUT_PATH = "Data_to_send"
-OUTPUT_FOLDER = "VIDA_20211026-26_SARP3_T1_TK"
-PATH_IN_REMOTE_HOST = "/home/twkim/ImageData"
+OUTPUT_FOLDER = "VIDA_20220127-27_SARP_TK"
+PATH_IN_REMOTE_HOST = "/data4/common/ImageData/SARP"
 # ---------------------------------------------------------------------------
 
 

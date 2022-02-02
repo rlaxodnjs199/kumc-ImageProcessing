@@ -9,7 +9,8 @@ from typing import List
 from tqdm import tqdm
 from pydicom import Dataset, dcmread
 
-IN_EX_DIR_SYNTAX = ["TLC", "RV"]
+IN_DIR_SYNTAX = ["IN", "TLC"]
+EX_DIR_SYNTAX = ["EX", "RV"]
 
 # Create an argument parser
 parser = argparse.ArgumentParser(
@@ -18,9 +19,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "src", metavar="src", type=pathlib.Path, help="DICOM source folder path"
 )
-args = parser.parse_args()
+parser.add_argument("-p", "--project", action="store", type=str, help="Project Name")
+parser.add_argument("-s", "--subject", action="store", type=str, help="Subject ID")
 
+args = parser.parse_args()
 src_dcm_dir = args.src
+proj = args.project
+subj = args.subject
 
 
 def _get_dcm_paths_from_dir(dcm_dir: str) -> List[str]:
@@ -31,17 +36,20 @@ def _get_dcm_paths_from_dir(dcm_dir: str) -> List[str]:
     return dcm_dir_list
 
 
-def _get_patient_id(dcm_path: str) -> str:
+def _get_proj_subj(dcm_path: str) -> list[str]:
+    if proj and subj:
+        return proj, subj
+
     dcm_dir = (
         basename(dirname(dirname(dcm_path)))
-        if basename(dirname(dcm_path)) in IN_EX_DIR_SYNTAX
+        if basename(dirname(dcm_path)) in IN_DIR_SYNTAX or EX_DIR_SYNTAX
         else basename(dirname(dcm_path))
     )
-    return dcm_dir.split("_")[-2]
+    return dcm_dir.split("_")[-3], dcm_dir.split("_")[-2]
 
 
 def _get_dst_dcm_dir(dcm_path: str) -> str:
-    if basename(dirname(dcm_path)) in IN_EX_DIR_SYNTAX:
+    if basename(dirname(dcm_path)) in IN_DIR_SYNTAX or EX_DIR_SYNTAX:
         base_path = dirname(dirname(dirname(dcm_path)))
         in_or_ex = basename(dirname(dcm_path))
         src_dir_name = basename(dirname(dirname(dcm_path)))
@@ -75,10 +83,10 @@ def _get_dst_dcm_dir(dcm_path: str) -> str:
 
 def _deidentify_dcm_slice(dcm_path: str) -> Dataset:
     dicom_to_deidentify = dcmread(dcm_path)
-    patient_id = _get_patient_id(dcm_path)
+    proj, subj = _get_proj_subj(dcm_path)
 
     try:
-        dicom_to_deidentify.PatientID = dicom_to_deidentify.PatientName = patient_id
+        dicom_to_deidentify.PatientID = dicom_to_deidentify.PatientName = subj
     except:
         print(f"{dcm_path}: PatientID or PatientName tag does not exist")
     try:
@@ -130,6 +138,7 @@ def _deidentify_dcm_slice(dcm_path: str) -> Dataset:
         if tag in dicom_to_deidentify:
             delattr(dicom_to_deidentify, tag)
     dicom_to_deidentify.remove_private_tags()
+    dicom_to_deidentify.add_new([0x0020, 0x4000], "LT", proj)
 
     return dicom_to_deidentify
 

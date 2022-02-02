@@ -3,7 +3,7 @@
 # Dependency
 # - VidaDatasheet.xlsx
 # Global Variable -----------------------------------------------------------
-XLSX_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\VidaSheet.xlsx"
+VIDASHEET_PATH = r"E:\common\Taewon\oneDrive\OneDrive - University of Kansas Medical Center\VidaSheet.xlsx"
 # ---------------------------------------------------------------------------
 import pandas as pd
 from pandas import DataFrame
@@ -68,11 +68,11 @@ def update_vida_datasheet(vida_datasheet_df: DataFrame, vida_dashboard_df: DataF
     vida_start_case_id = _find_first_case_id_to_update(vida_datasheet_df)
     print(f"Starting from Case ID: {vida_start_case_id}...")
     df_to_append = _constuct_df_to_append(vida_start_case_id, vida_dashboard_df)
-    _append_df_to_excel(XLSX_PATH, df_to_append, header=None, index=False)
+    _append_df_to_excel(VIDASHEET_PATH, df_to_append, header=None, index=False)
     print(f"Update VidaSheet.xlsx: Done")
 
 
 if __name__ == "__main__":
-    vida_datasheet_df = pd.read_excel(XLSX_PATH, sheet_name=0)
-    vida_dashboard_df = pd.read_excel(XLSX_PATH, sheet_name=1)
+    vida_datasheet_df = pd.read_excel(VIDASHEET_PATH, sheet_name=0)
+    vida_dashboard_df = pd.read_excel(VIDASHEET_PATH, sheet_name=1)
     update_vida_datasheet(vida_datasheet_df, vida_dashboard_df)
