@@ -12,10 +12,10 @@ from dotenv import dotenv_values
 CONFIG = dotenv_values(
     r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
 )
+GOOGLE_SA = gspread.service_account(filename="token.json")
+VIDASHEET = GOOGLE_SA.open_by_key(CONFIG["VIDASHEET_GOOGLE_API_KEY"])
+QCTWORKSHEET = GOOGLE_SA.open_by_key(CONFIG["QCTWORKSHEET_GOOGLE_API_KEY"])
 VIDA_RESULT_PATH = CONFIG["VIDA_RESULT_PATH"]
-SA = gspread.service_account(filename="token.json")
-VIDASHEET = SA.open_by_key("1lyb6QvforeB-VXYchgnoy5OOf0uncbuI0s3hIZV2hkg")
-VIDASHEET_WKS1 = VIDASHEET.worksheet("Sheet1")
 
 
 class VidaVisionWatcher:
@@ -61,7 +61,9 @@ class VidaImportHandler(PatternMatchingEventHandler):
 def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
     Proj = dicom_slice.ImageComments if dicom_slice.ImageComments else ""
     Subj = dicom_slice.PatientID
-    VidaCaseID = int(list(filter(None, VIDASHEET_WKS1.col_values(3)))[-1]) + 1
+    VidaCaseID = (
+        int(list(filter(None, VIDASHEET.worksheet("Sheet1").col_values(3)))[-1]) + 1
+    )
     VidaBy = ""
     MRN = ""
     VidaProgress = ""
@@ -100,7 +102,7 @@ def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
 
 def append_row_to_VidaSheet_on_vida_import(dicom_slice: FileDataset):
     vida_case = construct_new_vida_case(dicom_slice)
-    VIDASHEET_WKS1.append_row(vida_case)
+    VIDASHEET.worksheet("Sheet1").append_row(vida_case)
 
 
 if __name__ == "__main__":
