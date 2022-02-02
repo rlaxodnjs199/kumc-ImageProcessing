@@ -106,6 +106,5 @@ def append_row_to_VidaSheet_on_vida_import(dicom_slice: FileDataset):
 
 
 if __name__ == "__main__":
-    # VidaImportWatcher = VidaVisionWatcher(SRC_PATH, VidaImportHandler)
-    # VidaImportWatcher.run()
-    pass
+    VidaImportWatcher = VidaVisionWatcher(VIDA_RESULT_PATH, VidaImportHandler)
+    VidaImportWatcher.run()
