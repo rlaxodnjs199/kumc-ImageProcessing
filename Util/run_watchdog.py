@@ -9,9 +9,7 @@ from pydicom import dcmread, FileDataset
 import gspread
 from dotenv import dotenv_values
 
-CONFIG = dotenv_values(
-    r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
-)
+CONFIG = dotenv_values(".env")
 GOOGLE_SA = gspread.service_account(filename="token.json")
 VIDASHEET = GOOGLE_SA.open_by_key(CONFIG["VIDASHEET_GOOGLE_API_KEY"])
 QCTWORKSHEET = GOOGLE_SA.open_by_key(CONFIG["QCTWORKSHEET_GOOGLE_API_KEY"])
