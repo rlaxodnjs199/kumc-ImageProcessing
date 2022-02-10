@@ -9,8 +9,10 @@ from pydicom import dcmread, FileDataset
 import gspread
 from dotenv import dotenv_values
 
-CONFIG = dotenv_values(".env")
-GOOGLE_SA = gspread.service_account(filename="token.json")
+CONFIG = dotenv_values(
+    r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
+)
+GOOGLE_SA = gspread.service_account(filename=CONFIG["GOOGLE_TOKEN_PATH"])
 VIDASHEET = GOOGLE_SA.open_by_key(CONFIG["VIDASHEET_GOOGLE_API_KEY"])
 QCTWORKSHEET = GOOGLE_SA.open_by_key(CONFIG["QCTWORKSHEET_GOOGLE_API_KEY"])
 VIDA_RESULT_PATH = CONFIG["VIDA_RESULT_PATH"]
@@ -26,7 +28,7 @@ class VidaVisionWatcher:
         logger.add(f"logs/watch_VidaVision.log", level="DEBUG")
         self.observer.schedule(self.handler, self.path, recursive=True)
         self.observer.start()
-        logger.info(f"Observer started: {self.path}")
+        logger.info(f"Watchdog observer starts watching - {self.path}")
         try:
             while True:
                 await asyncio.sleep(1)
@@ -42,18 +44,30 @@ class VidaVisionWatcher:
 class VidaImportHandler(PatternMatchingEventHandler):
     def __init__(self):
         PatternMatchingEventHandler.__init__(self, patterns=["dicom"])
+        self.path = ""
 
     def on_created(self, event):
-        logger.info("DICOM folder created - % s." % event.src_path)
+        if self.path == event.src_path:
+            logger.info("Duplicate event generated -> Skip")
+        else:
+            logger.info("DICOM folder created - % s." % event.src_path)
 
-        # Wait until first DICOM slice get created
-        while not len(os.listdir(event.src_path)):
-            time.sleep(1)
+            # Wait until first DICOM slice get created
+            while not len(os.listdir(event.src_path)):
+                time.sleep(1)
 
-        dicom_slice_path = os.path.join(event.src_path, os.listdir(event.src_path)[0])
+            dicom_slice_path = os.path.join(
+                event.src_path, os.listdir(event.src_path)[0]
+            )
 
-        dicom_slice = dcmread(dicom_slice_path)
-        append_row_to_VidaSheet_on_vida_import(dicom_slice)
+            dicom_slice = dcmread(dicom_slice_path)
+            logger.info("Try to update VidaSheet...")
+            try:
+                append_row_to_VidaSheet_on_vida_import(dicom_slice)
+                logger.info("Update VidaSheet complete")
+                self.path = event.src_path
+            except:
+                logger.error("Update VidaSheet failed")
 
 
 def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
@@ -67,7 +81,20 @@ def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
     VidaProgress = ""
     Progress = ""
     ScanDate = dicom_slice.AcquisitionDate
-    IN_EX = ""
+
+    if (
+        "IN" in dicom_slice.SeriesDescription.upper()
+        or "TLC" in dicom_slice.SeriesDescription.upper()
+    ):
+        IN_EX = "IN"
+    elif (
+        "EX" in dicom_slice.SeriesDescription.upper()
+        or "RV" in dicom_slice.SeriesDescription.upper()
+    ):
+        IN_EX = "EX"
+    else:
+        IN_EX = ""
+
     CT_Protocol = dicom_slice.SeriesDescription
     Disease = ""
     SliceThickness_mm = dicom_slice.SliceThickness
