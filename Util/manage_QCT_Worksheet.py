@@ -73,7 +73,7 @@ class QCTProject:
                             )
                             new_case["VIDA_IN_At"] = self.config["VIDA_RESULT_LOCATION"]
                         # If Progress = blank: add entry
-                        elif pd.isna(row["Progress"]):
+                        elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
                         # If Progress = Case ID []: Skip without adding entry
                         elif "Case" in row["Progress"]:
@@ -97,7 +97,7 @@ class QCTProject:
                             )
                             new_case["VIDA_EX_At"] = self.config["VIDA_RESULT_LOCATION"]
                         # If Progress = blank: add entry
-                        elif pd.isna(row["Progress"]):
+                        elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
                         # If Progress = Case ID []: Skip without adding entry
                         elif "Case" in row["Progress"]:
@@ -126,7 +126,7 @@ class QCTProject:
                                 "VIDA_RESULT_LOCATION"
                             ]
                         # If Progress = blank: add entry
-                        elif pd.isna(row["Progress"]):
+                        elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
                         # If Progress = Case ID []: Skip without adding entry
                         elif "Case" in row["Progress"]:
@@ -154,7 +154,7 @@ class QCTProject:
                                 "VIDA_RESULT_LOCATION"
                             ]
                         # If Progress = blank: add entry
-                        elif pd.isna(row["Progress"]):
+                        elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
                         # If Progress = Case ID []: Skip without adding entry
                         elif "Case" in row["Progress"]:
@@ -206,4 +206,4 @@ class QCTProject:
 
 
 if __name__ == "__main__":
-    QCTProject("LCP").initialize_project_from_vidasheet()
+    QCTProject("LHC").initialize_project_from_vidasheet()
