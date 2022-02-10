@@ -75,8 +75,11 @@ class QCTProject:
                         # If Progress = blank: add entry
                         elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
-                        # If Progress = Case ID []: Skip without adding entry
-                        elif "Case" in row["Progress"]:
+                        # If Progress = Case ID [] or Test: Skip without adding entry
+                        elif (
+                            "CASE" in row["Progress"].upper()
+                            or "TEST" in row["Progress"].upper()
+                        ):
                             continue
                         else:
                             new_case["VIDA_IN"] = "Fail"
@@ -99,8 +102,11 @@ class QCTProject:
                         # If Progress = blank: add entry
                         elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
-                        # If Progress = Case ID []: Skip without adding entry
-                        elif "Case" in row["Progress"]:
+                        # If Progress = Case ID [] or Test: Skip without adding entry
+                        elif (
+                            "CASE" in row["Progress"].upper()
+                            or "TEST" in row["Progress"].upper()
+                        ):
                             continue
                         else:
                             new_case["VIDA_EX"] = "Fail"
@@ -128,8 +134,11 @@ class QCTProject:
                         # If Progress = blank: add entry
                         elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
-                        # If Progress = Case ID []: Skip without adding entry
-                        elif "Case" in row["Progress"]:
+                        # If Progress = Case ID [] or Test: Skip without adding entry
+                        elif (
+                            "CASE" in row["Progress"].upper()
+                            or "TEST" in row["Progress"].upper()
+                        ):
                             continue
                         else:
                             df_new_project.loc[case.index, "VIDA_IN"] = "Fail"
@@ -156,8 +165,11 @@ class QCTProject:
                         # If Progress = blank: add entry
                         elif pd.isna(row["Progress"]) or row["Progress"] == "":
                             pass
-                        # If Progress = Case ID []: Skip without adding entry
-                        elif "Case" in row["Progress"]:
+                        # If Progress = Case ID [] or Test: Skip without adding entry
+                        elif (
+                            "CASE" in row["Progress"].upper()
+                            or "TEST" in row["Progress"].upper()
+                        ):
                             continue
                         else:
                             df_new_project.loc[case.index, "VIDA_EX"] = "Fail"
