@@ -71,7 +71,9 @@ class VidaImportHandler(PatternMatchingEventHandler):
 
 
 def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
-    Proj = dicom_slice.ImageComments if dicom_slice.ImageComments else ""
+    Proj = (
+        dicom_slice.DeidentificationMethod if dicom_slice.DeidentificationMethod else ""
+    )
     Subj = dicom_slice.PatientID
     VidaCaseID = (
         int(list(filter(None, VIDASHEET.worksheet("Sheet1").col_values(3)))[-1]) + 1

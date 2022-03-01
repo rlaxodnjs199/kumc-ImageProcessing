@@ -2,6 +2,7 @@
 # python deidentify.py {dicom_src_dir}
 # >> python deidentify.py /p/IRB_STUDY00146630_RheSolve/Data/ImageData/DCM_20220216-16_GALA_TK/127-06-15_20220216/
 import os
+import string
 import pathlib
 from os.path import basename, dirname
 import argparse
@@ -17,6 +18,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("src", metavar="src", type=pathlib.Path, help="DICOM folder path")
 parser.add_argument("-p", "--project", action="store", type=str, help="Project Name")
 parser.add_argument("-s", "--subject", action="store", type=str, help="Subject ID")
+parser.add_argument("-i", "--img", action="store", type=str, help="Img ID")
 
 args = parser.parse_args()
 src_dcm_dir = args.src
@@ -61,7 +63,8 @@ TAGS_TO_ANONYMIZE = [
     "PersonName",
     "ScheduledPatientInstitutionResidence",
 ]
-VALIDATE_SUBSTRINGS = ["IN", "EX", "TLC", "RV"]
+VALIDATE_SUBSTRINGS = {"IN": ["IN", "TLC"], "EX": ["EX", "RV"]}
+PROCESSED_SERIES_DESCRIPTION = {"IN": {}, "EX": {}}
 ########################################################################################
 
 
@@ -95,32 +98,78 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[pathlib.Path]:
 
 
 def prepare_deid_dcm_dir(src_dcm_dir) -> pathlib.Path:
-    deid_dcm_dir = DEID_DCM_DIRNAME
-    deid_dcm_dir_path = os.path.join(src_dcm_dir, deid_dcm_dir)
+    dcm_dir_root = dirname(src_dcm_dir)
+    deid_dcm_dir_components = basename(dcm_dir_root).split("_")[:3]
+    deid_dcm_dir_components.extend(["deid", basename(dcm_dir_root).split("_")[-1]])
+    deid_dcm_dir = ("_").join(deid_dcm_dir_components)
+    deid_dcm_dir_path = os.path.join(dirname(dcm_dir_root), deid_dcm_dir)
 
     if not os.path.exists(deid_dcm_dir_path):
-        os.makedirs(deid_dcm_dir_path)
-        logger.info(f"DEID folder created at: {deid_dcm_dir_path}")
-    else:
-        logger.info(f"DEID folder already created at: {deid_dcm_dir_path}")
+        os.mkdir(deid_dcm_dir_path)
 
     return deid_dcm_dir_path
 
 
-def filter_dcm_img_to_deidentify(dcm_img: Dataset) -> bool:
-    for validate_substring in VALIDATE_SUBSTRINGS:
-        if validate_substring in dcm_img.SeriesDescription.upper():
-            return True
+def filter_dcm_img_to_deidentify(dcm_img: Dataset) -> Union[str, bool]:
+    if dcm_img.SeriesDescription.upper() in VALIDATE_SUBSTRINGS["IN"]:
+        return "IN"
+    elif dcm_img.SeriesDescription.upper() in VALIDATE_SUBSTRINGS["EX"]:
+        return "EX"
     return False
 
 
 @logger.catch
 def deidentify_dcm_img(
-    dcm_img_path: pathlib.Path, proj: str, subj: str
-) -> Union[Tuple[Dataset, str], None]:
-    dcm_img: Dataset = dcmread(dcm_img_path)
+    dcm_img_path: pathlib.Path,
+    deid_dcm_dir: pathlib.Path,
+    proj: str,
+    subj: str,
+    img_id: str,
+):
+    def construct_deid_dcm_img_dir_path(
+        deid_dcm_dir, proj, subj, in_or_ex, img_id, dcm_img
+    ) -> str:
+        series_uuid = dcm_img.SeriesInstanceUID
+        if series_uuid in PROCESSED_SERIES_DESCRIPTION[in_or_ex]:
+            return PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid]
+        else:
+            deid_dcm_img_dir_components = [
+                "DCM",
+                proj,
+                subj.replace("-", ""),
+                in_or_ex + img_id,
+            ]
+            deid_dcm_img_dirname = ("_").join(deid_dcm_img_dir_components)
+            if len(PROCESSED_SERIES_DESCRIPTION[in_or_ex]) == 0:
+                deid_dcm_img_dir_path = os.path.join(deid_dcm_dir, deid_dcm_img_dirname)
+                PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid] = os.path.join(
+                    deid_dcm_dir, deid_dcm_img_dirname
+                )
 
-    if filter_dcm_img_to_deidentify(dcm_img):
+                if not os.path.exists(deid_dcm_img_dir_path):
+                    os.mkdir(deid_dcm_img_dir_path)
+
+                return deid_dcm_img_dir_path
+            else:
+                alphabet_list = list(string.ascii_lowercase)
+                alphabet = alphabet_list[
+                    len(PROCESSED_SERIES_DESCRIPTION[in_or_ex] - 1)
+                ]
+                deid_dcm_img_dirname = deid_dcm_img_dirname + alphabet
+                deid_dcm_img_dir_path = os.path.join(deid_dcm_dir, deid_dcm_img_dirname)
+                PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid] = os.path.join(
+                    deid_dcm_dir, deid_dcm_img_dirname
+                )
+
+                if not os.path.exists(deid_dcm_img_dir_path):
+                    os.mkdir(deid_dcm_img_dir_path)
+
+                return deid_dcm_img_dir_path
+
+    dcm_img: Dataset = dcmread(dcm_img_path)
+    in_or_ex = filter_dcm_img_to_deidentify(dcm_img)
+
+    if in_or_ex:
         # PatientID = subj, PatientName = subj
         try:
             dcm_img.PatientID = dcm_img.PatientName = subj
@@ -140,34 +189,13 @@ def deidentify_dcm_img(
         dcm_img.remove_private_tags()
         # Record proj at 'DeidentificationMethod' tag
         dcm_img.add_new([0x0012, 0x0063], "LO", proj)
-        # Construct deidentified DICOM folder path
-        deid_dcm_dirname_components = [
-            "DCM",
-            proj,
-            subj,
-            dcm_img.SeriesDescription,
-        ]
-        deid_dcm_dirname = ("_").join(deid_dcm_dirname_components)
 
-        return dcm_img, deid_dcm_dirname
-
-    else:
-        return None, None
-
-
-def save_dcm_img(
-    deidentified_dcm_img: Dataset,
-    deid_dcm_dir: pathlib.Path,
-    deid_dcm_dirname: str,
-    dcm_img_path: pathlib.Path,
-):
-    deid_dcm_dirpath = os.path.join(deid_dcm_dir, deid_dcm_dirname)
-
-    if not os.path.exists(deid_dcm_dirpath):
-        os.makedirs(deid_dcm_dirpath)
-
-    deid_dcm_img_path = os.path.join(deid_dcm_dirpath, basename(dcm_img_path))
-    deidentified_dcm_img.save_as(deid_dcm_img_path)
+        # Save deidentified DICOM img
+        deid_dcm_img_dir_path = construct_deid_dcm_img_dir_path(
+            deid_dcm_dir, proj, subj, in_or_ex, img_id, dcm_img
+        )
+        deid_dcm_img_path = os.path.join(deid_dcm_img_dir_path, basename(dcm_img_path))
+        dcm_img.save_as(deid_dcm_img_path)
 
 
 if __name__ == "__main__":
@@ -176,14 +204,9 @@ if __name__ == "__main__":
     proj, subj = get_metadata_from_dcm_path(src_dcm_dir)
     dcm_img_paths = get_dcm_paths_from_dcm_dir(src_dcm_dir)
     deid_dcm_dir = prepare_deid_dcm_dir(src_dcm_dir)
+    img_id = args.img
 
     for dcm_img_path in tqdm(dcm_img_paths):
-        deidentified_dcm_img, deid_dcm_dirname = deidentify_dcm_img(
-            dcm_img_path, proj, subj
-        )
-        if deidentified_dcm_img:
-            save_dcm_img(
-                deidentified_dcm_img, deid_dcm_dir, deid_dcm_dirname, dcm_img_path
-            )
+        deidentify_dcm_img(dcm_img_path, deid_dcm_dir, proj, subj, img_id)
 
     logger.info(f"De-Identification finished: Results at {deid_dcm_dir}")
