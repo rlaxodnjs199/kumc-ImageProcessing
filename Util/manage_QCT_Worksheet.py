@@ -8,7 +8,9 @@ logger.add(f"logs/qctworksheet.log", level="DEBUG")
 
 class QCTProject:
     def __init__(self, project: str) -> None:
-        self.config = dotenv_values(".env")
+        self.config = dotenv_values(
+            r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
+        )
         self.google_service_account = gspread.service_account(
             filename=self.config["GOOGLE_TOKEN_PATH"]
         )

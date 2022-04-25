@@ -3,7 +3,9 @@ import pandas as pd
 from dotenv import dotenv_values
 
 # Configs --------------------------------------------
-CONFIG = dotenv_values(".env")
+CONFIG = dotenv_values(
+    r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
+)
 QCTWORKSHEET_PATH = CONFIG["QCTWORKSHEET_PATH"]
 OUTPUT_PATH = CONFIG["OUTPUT_PATH"]
 # -----------------------------------------------------
@@ -38,4 +40,4 @@ def prepare_ProjSubList_from_QCTWorksheet(proj: str):
         f.write(df_projsubjlist)
 
 
-# prepare_ProjSubList_from_QCTWorksheet("SNUH")
+prepare_ProjSubList_from_QCTWorksheet("GALA")

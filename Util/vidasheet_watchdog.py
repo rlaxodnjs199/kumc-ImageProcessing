@@ -8,6 +8,7 @@ from watchdog.observers import Observer
 from pydicom import dcmread, FileDataset
 import gspread
 from dotenv import dotenv_values
+from pandas import DataFrame
 
 CONFIG = dotenv_values(
     r"C:\Users\tkim3\Documents\Codes\ImageProcessing\Scripts\Util\.env"
@@ -16,6 +17,7 @@ GOOGLE_SA = gspread.service_account(filename=CONFIG["GOOGLE_TOKEN_PATH"])
 VIDASHEET = GOOGLE_SA.open_by_key(CONFIG["VIDASHEET_GOOGLE_API_KEY"])
 QCTWORKSHEET = GOOGLE_SA.open_by_key(CONFIG["QCTWORKSHEET_GOOGLE_API_KEY"])
 VIDA_RESULT_PATH = CONFIG["VIDA_RESULT_PATH"]
+VIDASHEET_CSV_PATH = CONFIG["VIDASHEET_CSV_PATH"]
 
 
 class VidaVisionWatcher:
@@ -50,7 +52,7 @@ class VidaImportHandler(PatternMatchingEventHandler):
         if self.path == event.src_path:
             logger.info("Duplicate event generated -> Skip")
         else:
-            logger.info("DICOM folder created - % s." % event.src_path)
+            logger.info("DICOM folder created - % s" % event.src_path)
 
             # Wait until first DICOM slice get created
             while not len(os.listdir(event.src_path)):
@@ -64,6 +66,7 @@ class VidaImportHandler(PatternMatchingEventHandler):
             logger.info("Try to update VidaSheet...")
             try:
                 append_row_to_VidaSheet_on_vida_import(dicom_slice)
+                save_vidasheet()
                 logger.info("Update VidaSheet complete")
                 self.path = event.src_path
             except:
@@ -75,6 +78,10 @@ def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
         dicom_slice.DeidentificationMethod if dicom_slice.DeidentificationMethod else ""
     )
     Subj = dicom_slice.PatientID
+    # There are some cases when VIDA automatically append case number to the end of Subj
+    if len(Subj.split("_")) >= 2:
+        Subj = dicom_slice.PatientID.split("_")[0]
+
     VidaCaseID = (
         int(list(filter(None, VIDASHEET.worksheet("Sheet1").col_values(3)))[-1]) + 1
     )
@@ -103,6 +110,8 @@ def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
     ScannerVender = dicom_slice.Manufacturer
     ScannerModel = dicom_slice.ManufacturerModelName
     Kernel = dicom_slice.ConvolutionKernel
+    if isinstance(Kernel, List):
+        Kernel = Kernel[0]
     Comments = ""
     VIDA_path = VIDA_RESULT_PATH + "\\" + str(VidaCaseID)
 
@@ -125,6 +134,13 @@ def construct_new_vida_case(dicom_slice: FileDataset) -> List[str]:
         Comments,
         VIDA_path,
     ]
+
+
+def save_vidasheet():
+    DataFrame(VIDASHEET.worksheet("Sheet1").get_all_records()).to_csv(
+        VIDASHEET_CSV_PATH,
+        index=False,
+    )
 
 
 def append_row_to_VidaSheet_on_vida_import(dicom_slice: FileDataset):
