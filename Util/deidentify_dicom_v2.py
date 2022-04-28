@@ -63,8 +63,13 @@ TAGS_TO_ANONYMIZE = [
     "PersonName",
     "ScheduledPatientInstitutionResidence",
 ]
-VALIDATE_SUBSTRINGS = {"IN": ["IN", "TLC"], "EX": ["EX", "RV"]}
-PROCESSED_SERIES_DESCRIPTION = {"IN": {}, "EX": {}}
+VALIDATE_SUBSTRINGS = {
+    "IN": ["IN", "TLC"],
+    "EX": ["EX", "RV"],
+    "SCOUT": "SCOUT",
+    "DOSE": "PATIENT",
+}
+PROCESSED_SERIES_DESCRIPTION = {"IN": {}, "EX": {}, "SCOUT": {}, "DOSE": {}}
 IN = 0
 EX = 0
 ########################################################################################
@@ -129,7 +134,7 @@ def prepare_deid_dcm_dir(src_dcm_dir) -> pathlib.Path:
     return deid_dcm_dir_child_path
 
 
-def filter_dcm_img_to_deidentify(dcm_img: Dataset) -> Union[str, bool]:
+def filter_dcm_img_to_deidentify(dcm_img: Dataset, proj: str) -> Union[str, bool]:
     global IN, EX
     for VALIDATE_SUBSTRING in VALIDATE_SUBSTRINGS["IN"]:
         if VALIDATE_SUBSTRING in dcm_img.SeriesDescription.upper():
@@ -139,6 +144,13 @@ def filter_dcm_img_to_deidentify(dcm_img: Dataset) -> Union[str, bool]:
         if VALIDATE_SUBSTRING in dcm_img.SeriesDescription.upper():
             EX = 1
             return "EX"
+    # LHC needs Scout & Dose report
+    if proj == "LHC":
+        if VALIDATE_SUBSTRINGS["SCOUT"] in dcm_img.SeriesDescription.upper():
+            return "SCOUT"
+        if VALIDATE_SUBSTRINGS["DOSE"] in dcm_img.SeriesDescription.upper():
+            return "DOSE"
+
     return False
 
 
@@ -219,7 +231,7 @@ def deidentify_dcm_img(
                 return deid_dcm_img_dir_path
 
     dcm_img: Dataset = dcmread(dcm_img_path)
-    in_or_ex = args.type if args.type else filter_dcm_img_to_deidentify(dcm_img)
+    in_or_ex = args.type if args.type else filter_dcm_img_to_deidentify(dcm_img, proj)
 
     if in_or_ex:
         # PatientID = subj, PatientName = subj
