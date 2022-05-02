@@ -3,7 +3,7 @@ import string
 import pathlib
 from os.path import basename, dirname
 import argparse
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 from tqdm import tqdm
 from pydicom import Dataset, dcmread
 from loguru import logger
@@ -69,9 +69,6 @@ VALIDATE_SUBSTRINGS = {
     "SCOUT": "SCOUT",
     "DOSE": "PATIENT",
 }
-PROCESSED_SERIES_DESCRIPTION = {"IN": {}, "EX": {}, "SCOUT": {}, "DOSE": {}}
-IN = 0
-EX = 0
 ########################################################################################
 
 # GoogleSheet variables ################################################################
@@ -106,14 +103,15 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[pathlib.Path]:
     dcm_paths = []
     for base, _, files in os.walk(src_dcm_dir):
         for file in files:
-            full_file_path = os.path.join(base, file)
-            if str(dirname(full_file_path)) == str(src_dcm_dir):
-                dcm_paths.append(full_file_path)
-            else:
-                logger.error(
-                    "DCM file depth greater than 1. Check the original DCM folder."
-                )
-                return []
+            if not file.endswith(".zip"):
+                full_file_path = os.path.join(base, file)
+                if str(dirname(full_file_path)) == str(src_dcm_dir):
+                    dcm_paths.append(full_file_path)
+                else:
+                    logger.error(
+                        "DCM file depth greater than 1. Check the original DCM folder."
+                    )
+                    return []
     return dcm_paths
 
 
@@ -154,17 +152,27 @@ def filter_dcm_img_to_deidentify(dcm_img: Dataset, proj: str) -> Union[str, bool
     return False
 
 
-def update_QCTWorksheet(proj: str, subj: str, ctdate: str, fu: str):
-    global IN, EX
+def update_QCTWorksheet(
+    proj: str,
+    subj: str,
+    ctdate: str,
+    fu: str,
+    in_or_ex: str,
+    deid_dcm_img_dir_path: pathlib.Path,
+):
     cell_lookup_list = QCTWORKSHEET.worksheet(proj).findall(subj)
     for cell_lookup in cell_lookup_list:
         cell_lookup_ctdate = QCTWORKSHEET.worksheet(proj).row_values(cell_lookup.row)[2]
         if ctdate == cell_lookup_ctdate:
             QCTWORKSHEET.worksheet(proj).update_cell(cell_lookup.row, 4, str(fu))
-            if IN:
-                QCTWORKSHEET.worksheet(proj).update_cell(cell_lookup.row, 5, "O")
-            if EX:
-                QCTWORKSHEET.worksheet(proj).update_cell(cell_lookup.row, 6, "O")
+            if in_or_ex == "IN":
+                QCTWORKSHEET.worksheet(proj).update_cell(
+                    cell_lookup.row, 5, deid_dcm_img_dir_path
+                )
+            elif in_or_ex == "EX":
+                QCTWORKSHEET.worksheet(proj).update_cell(
+                    cell_lookup.row, 6, deid_dcm_img_dir_path
+                )
             logger.info(
                 f"QCTWorksheet row updated: {proj}-{subj}-{ctdate}: {QCTWORKSHEET.worksheet(proj).row_values(cell_lookup.row)}"
             )
@@ -188,14 +196,23 @@ def deidentify_dcm_img(
     deid_dcm_dir: pathlib.Path,
     proj: str,
     subj: str,
+    ctdate: str,
     fu: int,
+    processed_series_description: Dict,
 ):
     def construct_deid_dcm_img_dir_path(
-        deid_dcm_dir, proj, subj, in_or_ex, fu, dcm_img
+        deid_dcm_dir,
+        proj,
+        subj,
+        ctdate,
+        in_or_ex,
+        fu,
+        dcm_img,
+        processed_series_description,
     ) -> str:
         series_uuid = dcm_img.SeriesInstanceUID
-        if series_uuid in PROCESSED_SERIES_DESCRIPTION[in_or_ex]:
-            return PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid]
+        if series_uuid in processed_series_description[in_or_ex]:
+            return processed_series_description[in_or_ex][series_uuid]
         else:
             deid_dcm_img_dir_components = [
                 "DCM",
@@ -204,29 +221,35 @@ def deidentify_dcm_img(
                 in_or_ex + str(fu),
             ]
             deid_dcm_img_dirname = ("_").join(deid_dcm_img_dir_components)
-            if len(PROCESSED_SERIES_DESCRIPTION[in_or_ex]) == 0:
+            if len(processed_series_description[in_or_ex]) == 0:
                 deid_dcm_img_dir_path = os.path.join(deid_dcm_dir, deid_dcm_img_dirname)
-                PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid] = os.path.join(
+                processed_series_description[in_or_ex][series_uuid] = os.path.join(
                     deid_dcm_dir, deid_dcm_img_dirname
                 )
 
                 if not os.path.exists(deid_dcm_img_dir_path):
                     os.mkdir(deid_dcm_img_dir_path)
+                    update_QCTWorksheet(
+                        proj, subj, ctdate, fu, in_or_ex, deid_dcm_img_dir_path
+                    )
 
                 return deid_dcm_img_dir_path
             else:
                 alphabet_list = list(string.ascii_lowercase)
                 alphabet = alphabet_list[
-                    len(PROCESSED_SERIES_DESCRIPTION[in_or_ex]) - 1
+                    len(processed_series_description[in_or_ex]) - 1
                 ]
                 deid_dcm_img_dirname = deid_dcm_img_dirname + alphabet
                 deid_dcm_img_dir_path = os.path.join(deid_dcm_dir, deid_dcm_img_dirname)
-                PROCESSED_SERIES_DESCRIPTION[in_or_ex][series_uuid] = os.path.join(
+                processed_series_description[in_or_ex][series_uuid] = os.path.join(
                     deid_dcm_dir, deid_dcm_img_dirname
                 )
 
                 if not os.path.exists(deid_dcm_img_dir_path):
                     os.mkdir(deid_dcm_img_dir_path)
+                    update_QCTWorksheet(
+                        proj, subj, ctdate, fu, in_or_ex, deid_dcm_img_dir_path
+                    )
 
                 return deid_dcm_img_dir_path
 
@@ -256,23 +279,64 @@ def deidentify_dcm_img(
 
         # Save deidentified DICOM img
         deid_dcm_img_dir_path = construct_deid_dcm_img_dir_path(
-            deid_dcm_dir, proj, subj, in_or_ex, fu, dcm_img
+            deid_dcm_dir,
+            proj,
+            subj,
+            ctdate,
+            in_or_ex,
+            fu,
+            dcm_img,
+            processed_series_description,
         )
         deid_dcm_img_path = os.path.join(deid_dcm_img_dir_path, basename(dcm_img_path))
         dcm_img.save_as(deid_dcm_img_path)
 
 
-if __name__ == "__main__":
+def run_deidentify(src_dcm_dir):
     logger.info(f"De-Identification started: {src_dcm_dir}")
 
     proj, subj, ctdate = get_metadata_from_dcm_path(src_dcm_dir)
     dcm_img_paths = get_dcm_paths_from_dcm_dir(src_dcm_dir)
     deid_dcm_dir = prepare_deid_dcm_dir(src_dcm_dir)
     fu = calculate_fu(proj, subj)
+    processed_series_description = {"IN": {}, "EX": {}, "SCOUT": {}, "DOSE": {}}
 
     for dcm_img_path in tqdm(dcm_img_paths):
-        deidentify_dcm_img(dcm_img_path, deid_dcm_dir, proj, subj, fu)
+        deidentify_dcm_img(
+            dcm_img_path,
+            deid_dcm_dir,
+            proj,
+            subj,
+            ctdate,
+            fu,
+            processed_series_description,
+        )
 
     logger.info(f"De-Identification finished: Results at {deid_dcm_dir}")
 
-    update_QCTWorksheet(proj, subj, ctdate, fu)
+
+def run_deidentify_batch(src_dcm_root_dir):
+    src_dcm_dirs = os.listdir(src_dcm_root_dir)
+    for src_dcm_dir in src_dcm_dirs:
+        run_deidentify(os.path.join(src_dcm_root_dir, src_dcm_dir))
+
+
+def get_depth(path, depth=0):
+    if not os.path.isdir(path):
+        return depth
+
+    max_depth = depth
+    for entry in os.listdir(path):
+        dir_path = os.path.join(path, entry)
+        max_depth = max(max_depth, get_depth(dir_path, depth + 1))
+
+    return max_depth
+
+
+if __name__ == "__main__":
+    if get_depth(src_dcm_dir) == 2:
+        run_deidentify_batch(src_dcm_dir)
+    elif get_depth(src_dcm_dir) == 1:
+        run_deidentify(src_dcm_dir)
+    else:
+        print("Folder structure not supported")
