@@ -24,7 +24,8 @@ TAR_OUTPUT_PATH = CONFIG["TAR_OUTPUT_PATH"]
 VIDASHEET_CSV_PATH = CONFIG["VIDASHEET_CSV_PATH"]
 
 B2_PATH = CONFIG["B2_PATH"]
-PROJECT = "CXe"
+L1_PATH = "/data3/common/ImageData/"
+PROJECT = "ILD"
 
 
 class VidaCase:
@@ -93,8 +94,9 @@ class VidaCase:
 
 
 def tar_vida_cases(vida_cases: List[VidaCase]) -> Path:
+    project = vida_cases[0].proj
     date = datetime.today().strftime("%Y%m%d")
-    tar_path = os.path.join(TAR_OUTPUT_PATH, f"VIDA_{date}_{PROJECT}.tar.bz2")
+    tar_path = os.path.join(TAR_OUTPUT_PATH, f"VIDA_{date}_{project}-3.tar.bz2")
 
     with tarfile.open(tar_path, "w:bz2") as tar:
         for vida_case in tqdm(vida_cases):
@@ -117,7 +119,7 @@ def transfer_tar_to_b2(tar_path: Path, b2_path: Path) -> None:
 
     with SSHClient() as ssh:
         ssh.load_system_host_keys()
-        ssh.connect("b2.snuhpia.org", port=11022, username="twkim")
+        ssh.connect("l1", username="twkim")
         with SCPClient(ssh.get_transport(), progress4=progress4) as scp:
             logger.info(f"Transfering VIDA Tarfile...")
             time_begin = time.time()
@@ -130,8 +132,8 @@ def transfer_tar_to_b2(tar_path: Path, b2_path: Path) -> None:
 if __name__ == "__main__":
     cases = sys.argv[1:]
     vida_cases = [VidaCase(case) for case in cases]
-    for vida_case in vida_cases:
-        vida_case.update_qctworksheet()
-        time.sleep(5)
-    # tar_path = tar_vida_cases(vida_cases)
-    # transfer_tar_to_b2(tar_path, f"{B2_PATH}/{PROJECT}")
+    project = vida_cases[0].proj
+    # for vida_case in vida_cases:
+    #     vida_case.update_qctworksheet()
+    tar_path = tar_vida_cases(vida_cases)
+    # transfer_tar_to_b2(tar_path, f"{L1_PATH}/{project}")

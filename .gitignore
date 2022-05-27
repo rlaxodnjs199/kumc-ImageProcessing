@@ -4,6 +4,11 @@
 .envrc
 .env
 
+depreciated/
+input/
+logs/
+output/
+
 temp_scripts/
 sample_dicom/
 sample_output/
