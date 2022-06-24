@@ -119,7 +119,7 @@ def get_file_count(src_dcm_dir) -> int:
 def analyze_dcm_series(dcm_paths):
     series_metadata_dict = {}
     series_path_dict = {}
-    for dcm_path in tqdm(dcm_paths):
+    for dcm_path in tqdm(dcm_paths, desc=" Analyzing series", position=1, leave=False):
         dcm = dcmread(dcm_path)
         try:
             series_uid = dcm.SeriesInstanceUID
@@ -204,15 +204,17 @@ def run_deidentifier(src_path: Path):
     )
     export_series_metadata_to_csv(series_metadata_dict, deid_dcm_dir)
 
-    for series_uid in tqdm(series_path_dict):
-        for dcm_path in series_path_dict[series_uid]:
+    for series_uid in tqdm(series_path_dict, desc=" Series", position=1, leave=False):
+        for dcm_path in tqdm(
+            series_path_dict[series_uid], desc=" Slices", position=2, leave=False
+        ):
             subj = series_metadata_dict[series_uid]["subj"]
             deidentify(dcm_path, deid_dcm_dir, subj)
 
 
 def run_deidentifier_batch(src_path):
     src_dcm_dirs = os.listdir(src_path)
-    for src_dcm_dir in src_dcm_dirs:
+    for src_dcm_dir in tqdm(src_dcm_dirs, desc=" Scans", position=0):
         run_deidentifier(os.path.join(src_path, src_dcm_dir))
 
 
