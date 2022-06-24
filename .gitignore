@@ -41,3 +41,5 @@ dicom_metadata_selected.csv
 
 metadata_log
 token.json
+
+.python-version
