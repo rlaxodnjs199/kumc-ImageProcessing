@@ -61,14 +61,14 @@ class VidaImportHandler(PatternMatchingEventHandler):
 
             vida_case_number = os.path.basename(os.path.dirname(event.src_path))
             try:
-                vida_case = VidaCase.from_case_number(vida_case_number)
+                vida_case = VidaCaseRow.from_case_number(vida_case_number)
                 update_vidasheet(vida_case)
-                logger.info("Update VidaSheet succeed")
+                logger.info(f"Update VidaSheet succeed - {vida_case_number}")
             except:
-                logger.error("Update VidaSheet failed")
+                logger.error(f"Update VidaSheet failed - {vida_case_number}")
 
 
-class VidaCase:
+class VidaCaseRow:
     def __init__(self, vida_case_number: str) -> None:
         self.vida_case_number = vida_case_number
 
@@ -76,12 +76,18 @@ class VidaCase:
         dicom_folder_path = os.path.join(
             VIDAVISION_PATH, self.vida_case_number, "dicom"
         )
-        dicom_slice_path = os.path.join(
-            dicom_folder_path, os.listdir(dicom_folder_path)[0]
-        )
-        dicom = dcmread(dicom_slice_path)
+        try:
+            dicom_slice_path = os.path.join(
+                dicom_folder_path, os.listdir(dicom_folder_path)[0]
+            )
+        except:
+            logger.error(f"DICOM slice has not been created - {self.vida_case_number}")
+            return None
 
-        proj = dicom.DeidentificationMethod if dicom.DeidentificationMethod else ""
+        dicom = dcmread(dicom_slice_path)
+        proj = ""
+        if hasattr(dicom, "DeidentificationMethod"):
+            proj = dicom.DeidentificationMethod
         # When VIDA append case number at the end of PatientID, then exclude the case number.
         subj = (
             dicom.PatientID
@@ -129,7 +135,10 @@ class VidaCase:
         ]
 
 
-def update_vidasheet(vida_case: VidaCase):
+def update_vidasheet(vida_case_row: List[str]):
+    if VIDASHEET.worksheet("Sheet1").find(vida_case_row[2]):
+        logger.warning(f"Skip duplicate VIDA sheet update on case - {vida_case_row[2]}")
+        return
     VIDASHEET.worksheet("Sheet1").append_row(vida_case)
 
 
@@ -148,7 +157,7 @@ if __name__ == "__main__":
             vida_case_numbers = [sys.argv[1]]
         for vida_case_number in vida_case_numbers:
 
-            vida_case = VidaCase(vida_case_number).from_case_number()
+            vida_case = VidaCaseRow(vida_case_number).from_case_number()
             update_vidasheet(vida_case)
 
         logger.info("Update VidaSheet succeed")
