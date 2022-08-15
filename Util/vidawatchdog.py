@@ -60,16 +60,16 @@ class VidaImportHandler(PatternMatchingEventHandler):
                 time.sleep(1)
 
             vida_case_number = os.path.basename(os.path.dirname(event.src_path))
-            try:
-                vida_case = VidaCaseRow.from_case_number(vida_case_number)
-                update_vidasheet(vida_case)
-                logger.info(f"Update VidaSheet succeed - {vida_case_number}")
-            except:
-                logger.error(f"Update VidaSheet failed - {vida_case_number}")
+            # try:
+            vida_case = VidaCaseRow(vida_case_number).from_case_number()
+            update_vidasheet(vida_case)
+            logger.info(f"Update VidaSheet succeed - {vida_case_number}")
+        # except:
+        #     logger.error(f"Update VidaSheet failed - {vida_case_number}")
 
 
 class VidaCaseRow:
-    def __init__(self, vida_case_number: str) -> None:
+    def __init__(self, vida_case_number: str):
         self.vida_case_number = vida_case_number
 
     def from_case_number(self) -> List:
@@ -139,7 +139,7 @@ def update_vidasheet(vida_case_row: List[str]):
     if VIDASHEET.worksheet("Sheet1").find(vida_case_row[2]):
         logger.warning(f"Skip duplicate VIDA sheet update on case - {vida_case_row[2]}")
         return
-    VIDASHEET.worksheet("Sheet1").append_row(vida_case)
+    VIDASHEET.worksheet("Sheet1").append_row(vida_case_row)
 
 
 if __name__ == "__main__":
