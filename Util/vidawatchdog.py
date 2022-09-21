@@ -144,24 +144,27 @@ def update_vidasheet(vida_case_row: List[str]):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        if len(sys.argv) == 3:
-            vida_case_numbers_start = sys.argv[1]
-            vida_case_numbers_end = sys.argv[2]
-            vida_case_numbers = [
-                str(vida_case_number)
-                for vida_case_number in range(
-                    int(vida_case_numbers_start), int(vida_case_numbers_end) + 1
-                )
-            ]
-        elif len(sys.argv) == 2:
-            vida_case_numbers = [sys.argv[1]]
+        if sys.argv[1] == "-r":
+            if len(sys.argv) == 4:
+                vida_case_numbers_start = sys.argv[2]
+                vida_case_numbers_end = sys.argv[3]
+                vida_case_numbers = [
+                    str(vida_case_number)
+                    for vida_case_number in range(
+                        int(vida_case_numbers_start), int(vida_case_numbers_end) + 1
+                    )
+                ]
+            else:
+                print("Please enter two case numbers for the range")
+                vida_case_numbers = []
+        else:
+            vida_case_numbers = sys.argv[1:]
         for vida_case_number in vida_case_numbers:
 
             vida_case = VidaCaseRow(vida_case_number).from_case_number()
             update_vidasheet(vida_case)
 
         logger.info("Update VidaSheet succeed")
-
     else:
         VidaImportWatcher = VidaVisionWatcher(VIDAVISION_PATH, VidaImportHandler)
         VidaImportWatcher.run()

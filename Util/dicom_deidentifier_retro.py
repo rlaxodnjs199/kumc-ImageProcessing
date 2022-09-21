@@ -90,9 +90,11 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[Path]:
     return dcm_paths
 
 
-def prepare_deid_dcm_dir(src_dcm_dir) -> Path:
+def prepare_deid_dcm_dir(src_dcm_dir) -> str:
     dcm_dir_root = dirname(src_dcm_dir)
-    deid_dcm_dir = ("_").join([basename(dcm_dir_root), "DEID"])
+    deid_dcm_dir_material = basename(dcm_dir_root).split("_")
+    deid_dcm_dir_material.insert(-1, "deid")
+    deid_dcm_dir = ("_").join(deid_dcm_dir_material)
     deid_dcm_dir_path = os.path.join(dirname(dcm_dir_root), deid_dcm_dir)
     deid_dcm_dir_child_path = os.path.join(deid_dcm_dir_path, basename(src_dcm_dir))
 
@@ -198,7 +200,13 @@ def parse_series_description(series_description: str) -> str:
 
 
 def run_deidentifier(src_path: Path):
-    deid_dcm_dir = prepare_deid_dcm_dir(src_path)
+    if dst_path:
+        deid_dcm_dir = Path(dst_path)
+        if not os.path.exists(deid_dcm_dir):
+            os.mkdir(deid_dcm_dir)
+    else:
+        deid_dcm_dir = prepare_deid_dcm_dir(src_path)
+
     series_metadata_dict, series_path_dict = analyze_dcm_series(
         get_dcm_paths_from_dcm_dir(src_path)
     )
@@ -220,7 +228,11 @@ def run_deidentifier_batch(src_path):
 
 def deidentify(dcm_path: Path, deid_dcm_dir: Path, subj: str):
     dcm = dcmread(dcm_path)
-    parsed_series_description = parse_series_description(dcm.SeriesDescription)
+    try:
+        parsed_series_description = parse_series_description(dcm.SeriesDescription)
+    except:
+        print(f"No series description - {dcm_path}")
+        parsed_series_description = "UNKNOWN"
     deid_series_dir = ("_").join(["DCM", subj, parsed_series_description])
     deid_series_dir_path = os.path.join(deid_dcm_dir, deid_series_dir)
 
