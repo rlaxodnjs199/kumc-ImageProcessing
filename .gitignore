@@ -3,6 +3,7 @@
 .vscode/
 .envrc
 .env
+firebaseServiceAccountKey.json
 
 Temp/
 

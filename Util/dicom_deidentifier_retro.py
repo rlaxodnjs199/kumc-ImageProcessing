@@ -1,3 +1,18 @@
+"""
+Python script to de-identify DICOM images
+
+Requirements
+1) DICOM folder name should be SUBJ_CTDATE: ex) KU39009_20220921
+
+Input
+1) Raw DICOM folder path
+2) destination folder path with -d option
+
+Output
+1) De-identified DICOM folder in given destination folder path
+
+python ./dicom_deidentifier_retro.py ./KU39009_20220921 ./deid/KU39009_20220921
+"""
 import os
 import re
 from os.path import dirname, basename
