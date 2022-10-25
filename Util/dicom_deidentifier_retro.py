@@ -5,13 +5,15 @@ Requirements
 1) DICOM folder name should be SUBJ_CTDATE: ex) KU39009_20220921
 
 Input
-1) Raw DICOM folder path
+1) Raw DICOM folder path (can be a parent folder path of multiple DICOM folders)
 2) destination folder path with -d option
+3) ID Mapping csv path with -f option
 
 Output
 1) De-identified DICOM folder in given destination folder path
 
 python ./dicom_deidentifier_retro.py ./KU39009_20220921 ./deid/KU39009_20220921
+python ./dicom_deidentifier_retro.py /k/Scott_CT_Data/416192_190710/ -f ./Util/output/KU_ID_mapping.csv
 """
 import os
 import re
@@ -28,6 +30,9 @@ from loguru import logger
 # Setup Parser
 parser = argparse.ArgumentParser(description="De-Identifier")
 parser.add_argument("src", metavar="src", type=str, help="DICOM source folder path")
+parser.add_argument(
+    "-f", "--file", action="store", type=Path, help="CSV file including ID mapping"
+)
 parser.add_argument("-d", "--dst", action="store", type=str, help="Deid folder path")
 args = parser.parse_args()
 
@@ -35,6 +40,8 @@ src_path = args.src
 if src_path.endswith("/"):
     src_path = src_path[:-1]
 dst_path = args.dst
+csv_path = args.file
+
 
 # Tags
 TAGS_TO_ANONYMIZE = [
@@ -77,6 +84,11 @@ TAGS_TO_ANONYMIZE = [
 ]
 
 
+def get_subj_from_csv(path) -> Dict[str, str]:
+    df = pd.read_csv(path)
+    return {str(mrn): str(id) for mrn, id in zip(df.mrn.to_list(), df.id.to_list())}
+
+
 def get_dir_depth(path, depth=0):
     if not os.path.isdir(path):
         return depth
@@ -89,29 +101,50 @@ def get_dir_depth(path, depth=0):
     return max_depth
 
 
+def run_batch_or_not(path, depth=0):
+    for f in os.listdir(path):
+        if f == "DICOM":
+            if depth == 0:
+                return False
+            elif depth == 1:
+                return True
+            else:
+                logger.error("Invalid src path")
+                quit()
+        else:
+            if depth < 2:
+                return run_batch_or_not(os.path.join(path, f), depth + 1)
+            else:
+                logger.error("Invalid src path")
+                quit()
+
+
 def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[Path]:
     dcm_paths = []
     for base, _, files in os.walk(src_dcm_dir):
         for file in files:
-            if not file.endswith(".zip"):
-                full_file_path = os.path.join(base, file)
-                if str(dirname(full_file_path)) == str(src_dcm_dir):
-                    dcm_paths.append(full_file_path)
-                else:
-                    logger.error(
-                        "DCM file depth greater than 1. Check the original DCM folder."
-                    )
-                    return []
+            # if not file.endswith(".zip"):
+            #     full_file_path = os.path.join(base, file)
+            #     if str(dirname(full_file_path)) == str(src_dcm_dir):
+            #         dcm_paths.append(full_file_path)
+            #     else:
+            #         logger.error(
+            #             "DCM file depth greater than 1. Check the original DCM folder."
+            #         )
+            #         return []
+            if file.startswith("EE"):
+                dcm_paths.append(os.path.join(base, file))
     return dcm_paths
 
 
-def prepare_deid_dcm_dir(src_dcm_dir) -> str:
+def prepare_deid_dcm_dir(src_dcm_dir, subj) -> str:
     dcm_dir_root = dirname(src_dcm_dir)
     deid_dcm_dir_material = basename(dcm_dir_root).split("_")
     deid_dcm_dir_material.insert(-1, "deid")
     deid_dcm_dir = ("_").join(deid_dcm_dir_material)
     deid_dcm_dir_path = os.path.join(dirname(dcm_dir_root), deid_dcm_dir)
-    deid_dcm_dir_child_path = os.path.join(deid_dcm_dir_path, basename(src_dcm_dir))
+    deid_dcm_child_dir = ("_").join([subj, basename(src_dcm_dir).split("_")[1]])
+    deid_dcm_dir_child_path = os.path.join(deid_dcm_dir_path, deid_dcm_child_dir)
 
     if not os.path.exists(deid_dcm_dir_path):
         os.mkdir(deid_dcm_dir_path)
@@ -133,7 +166,7 @@ def get_file_count(src_dcm_dir) -> int:
         return file_count
 
 
-def analyze_dcm_series(dcm_paths):
+def analyze_dcm_series(dcm_paths, subj):
     series_metadata_dict = {}
     series_path_dict = {}
     for dcm_path in tqdm(dcm_paths, desc=" Analyzing series", position=1, leave=False):
@@ -146,7 +179,6 @@ def analyze_dcm_series(dcm_paths):
 
         if series_uid not in series_metadata_dict:
             series_metadata_dict[series_uid] = {}
-            subj = basename(dirname(dcm_path)).split("_")[0]
             series_metadata_dict[series_uid]["subj"] = subj
             try:
                 series_metadata_dict[series_uid][
@@ -215,15 +247,19 @@ def parse_series_description(series_description: str) -> str:
 
 
 def run_deidentifier(src_path: Path):
+    mrn_id_mapping = get_subj_from_csv(csv_path) if csv_path else {}
+    subj = basename(src_path).split("_")[0]
+    subj = mrn_id_mapping[subj] if mrn_id_mapping else subj
+
     if dst_path:
         deid_dcm_dir = Path(dst_path)
         if not os.path.exists(deid_dcm_dir):
             os.mkdir(deid_dcm_dir)
     else:
-        deid_dcm_dir = prepare_deid_dcm_dir(src_path)
+        deid_dcm_dir = prepare_deid_dcm_dir(src_path, subj)
 
     series_metadata_dict, series_path_dict = analyze_dcm_series(
-        get_dcm_paths_from_dcm_dir(src_path)
+        get_dcm_paths_from_dcm_dir(src_path), subj
     )
     export_series_metadata_to_csv(series_metadata_dict, deid_dcm_dir)
 
@@ -269,9 +305,7 @@ def deidentify(dcm_path: Path, deid_dcm_dir: Path, subj: str):
 
 
 if __name__ == "__main__":
-    if get_dir_depth(src_path) == 2:
+    if run_batch_or_not(src_path):
         run_deidentifier_batch(src_path)
-    elif get_dir_depth(src_path) == 1:
-        run_deidentifier(src_path)
     else:
-        logger.error("Invalid folder structure")
+        run_deidentifier(src_path)
