@@ -36,6 +36,7 @@ parser.add_argument(
 parser.add_argument("-d", "--dst", action="store", type=str, help="Deid folder path")
 args = parser.parse_args()
 
+# Declare input parameters
 src_path = args.src
 if src_path.endswith("/"):
     src_path = src_path[:-1]
@@ -123,17 +124,17 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[Path]:
     dcm_paths = []
     for base, _, files in os.walk(src_dcm_dir):
         for file in files:
-            # if not file.endswith(".zip"):
-            #     full_file_path = os.path.join(base, file)
-            #     if str(dirname(full_file_path)) == str(src_dcm_dir):
-            #         dcm_paths.append(full_file_path)
-            #     else:
-            #         logger.error(
-            #             "DCM file depth greater than 1. Check the original DCM folder."
-            #         )
-            #         return []
-            if file.startswith("EE"):
-                dcm_paths.append(os.path.join(base, file))
+            if not file.endswith(".zip"):
+                # full_file_path = os.path.join(base, file)
+                # if str(dirname(full_file_path)) == str(src_dcm_dir):
+                # dcm_paths.append(full_file_path)
+                # else:
+                #     logger.error(
+                #         "DCM file depth greater than 1. Check the original DCM folder."
+                #     )
+                #     return []
+                if file.startswith("EE"):
+                    dcm_paths.append(os.path.join(base, file))
     return dcm_paths
 
 
