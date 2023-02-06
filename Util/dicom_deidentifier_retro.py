@@ -125,6 +125,7 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[Path]:
     for base, _, files in os.walk(src_dcm_dir):
         for file in files:
             if not file.endswith(".zip"):
+                # Centricity PACS
                 # full_file_path = os.path.join(base, file)
                 # if str(dirname(full_file_path)) == str(src_dcm_dir):
                 # dcm_paths.append(full_file_path)
@@ -133,8 +134,13 @@ def get_dcm_paths_from_dcm_dir(src_dcm_dir: str) -> List[Path]:
                 #         "DCM file depth greater than 1. Check the original DCM folder."
                 #     )
                 #     return []
-                if file.startswith("EE"):
-                    dcm_paths.append(os.path.join(base, file))
+
+                # Sectra PACS
+                # if file.startswith("EE"):
+                #     dcm_paths.append(os.path.join(base, file))
+                
+                # General setting
+                dcm_paths.append(os.path.join(base, file))
     return dcm_paths
 
 
